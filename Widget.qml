@@ -174,13 +174,15 @@ Panel {
               spacing: Style.space(6)
               Repeater {
                 model: root.page === "main" ? [
-                  { icon: root.s.enabled ? "󰔡" : "󰨙", tip: root.s.enabled ? "Turn off" : "Turn on" },
+                  { icon: "󰐥", label: root.s.enabled ? "On" : "Off", tip: root.s.enabled ? "Turn off" : "Turn on" },
                   { icon: "󰒓", tip: "Settings" }
                 ] : [{ icon: "󰁍", tip: "Back" }]
                 Button {
                   required property var modelData
                   required property int index
                   iconText: modelData.icon
+                  text: modelData.label ? root.tr(modelData.label) : ""
+                  fontSize: Style.font.bodySmall
                   iconSize: Style.font.title
                   tooltipText: root.tr(modelData.tip)
                   foreground: root.fg
