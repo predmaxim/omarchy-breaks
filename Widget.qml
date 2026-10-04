@@ -25,7 +25,7 @@ Panel {
   property var service: null
   property string page: "main"
   property int cursor: 0
-  // Header button under the cursor: main 0 on/off, 1 settings; settings 0 Back.
+  // Header button under the cursor: main 0 settings, 1 on/off; settings 0 Back.
   property int headCol: 0
 
   // The service is a separate plugin instance; look it up until it is there.
@@ -96,7 +96,7 @@ Panel {
     else if (row.key === "pause") { root.service.pause(60); root.close() }
     else if (row.type === "head") {
       if (root.page === "settings") root.showPage("main")
-      else if (root.headCol === 0) root.set("enabled", !root.s.enabled)
+      else if (root.headCol === 1) root.set("enabled", !root.s.enabled)
       else root.showPage("settings")
     }
     else if (row.type === "switch" || row.type === "choice") root.change(i, 1)
@@ -168,20 +168,11 @@ Panel {
               font.family: root.font
               font.pixelSize: Style.font.display
             }
-            // The stock header pattern (Wi-Fi, audio): the on/off ToggleSwitch,
-            // then the settings button, or Back in its place on the settings
-            // page; ←/→ on the header row picks one.
+            // The stock header pattern (Wi-Fi, audio): the settings button, then
+            // the on/off ToggleSwitch at the right edge; on the settings page
+            // only Back, at the edge; ←/→ on the header row picks one.
             trailingControl: Row {
               spacing: Style.space(10)
-              ToggleSwitch {
-                visible: root.page === "main"
-                anchors.verticalCenter: parent.verticalCenter
-                checked: root.s.enabled
-                hasCursor: root.cursor === 0 && root.headCol === 0
-                foreground: root.fg
-                onToggled: { root.cursor = 0; root.headCol = 0; root.activate(0) }
-                PanelToolTip { visible: parent.containsMouse; text: root.tr(root.s.enabled ? "Turn off" : "Turn on") }
-              }
               Button {
                 readonly property bool back: root.page === "settings"
                 anchors.verticalCenter: parent.verticalCenter
@@ -190,9 +181,17 @@ Panel {
                 tooltipText: root.tr(back ? "Back" : "Settings")
                 foreground: root.fg
                 fontFamily: root.font
-                bordered: true
-                hasCursor: root.cursor === 0 && root.headCol === (back ? 0 : 1)
-                onClicked: { root.cursor = 0; root.headCol = back ? 0 : 1; root.activate(0) }
+                hasCursor: root.cursor === 0 && root.headCol === 0
+                onClicked: { root.cursor = 0; root.headCol = 0; root.activate(0) }
+              }
+              ToggleSwitch {
+                visible: root.page === "main"
+                anchors.verticalCenter: parent.verticalCenter
+                checked: root.s.enabled
+                hasCursor: root.cursor === 0 && root.headCol === 1
+                foreground: root.fg
+                onToggled: { root.cursor = 0; root.headCol = 1; root.activate(0) }
+                PanelToolTip { visible: parent.containsMouse; text: root.tr(root.s.enabled ? "Turn off" : "Turn on") }
               }
             }
           }
