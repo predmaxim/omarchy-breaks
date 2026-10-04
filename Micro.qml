@@ -4,25 +4,39 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import qs.Commons
 
-// The micro-pause: no lock, a card in the middle of the screen. It is done by itself after
-// microSeconds without input (the IdleMonitor in Service.qml).
+// The micro-pause: no lock, a card at the top centre, where notifications
+// pop up. It is done by itself after microSeconds without input (the
+// IdleMonitor in Service.qml). Notifications share the Overlay layer and a
+// newer surface goes on top, so the card maps itself again over each one.
 Item {
+  id: root
   property var service: null
   readonly property var s: service
+  property bool raised: true
+
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (!root.s || !root.s.microShown || event.name !== "openlayer" || event.data.indexOf("omarchy-notifications") < 0) return
+      root.raised = false
+      Qt.callLater(function() { root.raised = true })
+    }
+  }
 
   Variants {
-    model: s && s.microShown ? Quickshell.screens : []
+    model: s && s.microShown && root.raised ? Quickshell.screens : []
     delegate: Component {
       PanelWindow {
         required property var modelData
         screen: modelData
         visible: !Hyprland.focusedMonitor || modelData.name === Hyprland.focusedMonitor.name
-        // No anchors: the layer sits in the middle of the screen.
+        anchors.top: true
+        margins.top: 12
         implicitWidth: card.implicitWidth + 64
         implicitHeight: 96
         color: "transparent"
         WlrLayershell.namespace: "predmaxim-breaks-micro"
-        WlrLayershell.layer: WlrLayer.Top
+        WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
         Rectangle {
