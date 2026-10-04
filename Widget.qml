@@ -168,30 +168,31 @@ Panel {
               font.family: root.font
               font.pixelSize: Style.font.display
             }
-            // On/off and settings, or Back on the settings page; ←/→ on the
-            // header row picks one.
+            // The stock header pattern (Wi-Fi, audio): the on/off ToggleSwitch,
+            // then the settings button, or Back in its place on the settings
+            // page; ←/→ on the header row picks one.
             trailingControl: Row {
-              spacing: Style.space(6)
-              Repeater {
-                model: root.page === "main" ? [
-                  { icon: "󰐥", label: root.s.enabled ? "On" : "Off", tip: root.s.enabled ? "Turn off" : "Turn on" },
-                  { icon: "󰒓", tip: "Settings" }
-                ] : [{ icon: "󰁍", tip: "Back" }]
-                Button {
-                  required property var modelData
-                  required property int index
-                  iconText: modelData.icon
-                  text: modelData.label ? root.tr(modelData.label) : ""
-                  fontSize: Style.font.bodySmall
-                  iconSize: Style.font.title
-                  tooltipText: root.tr(modelData.tip)
-                  foreground: root.fg
-                  fontFamily: root.font
-                  bordered: true
-                  active: root.page === "main" && index === 0 && root.s.enabled
-                  hasCursor: root.cursor === 0 && root.headCol === index
-                  onClicked: { root.cursor = 0; root.headCol = index; root.activate(0) }
-                }
+              spacing: Style.space(10)
+              ToggleSwitch {
+                visible: root.page === "main"
+                anchors.verticalCenter: parent.verticalCenter
+                checked: root.s.enabled
+                hasCursor: root.cursor === 0 && root.headCol === 0
+                foreground: root.fg
+                onToggled: { root.cursor = 0; root.headCol = 0; root.activate(0) }
+                PanelToolTip { visible: parent.containsMouse; text: root.tr(root.s.enabled ? "Turn off" : "Turn on") }
+              }
+              Button {
+                readonly property bool back: root.page === "settings"
+                anchors.verticalCenter: parent.verticalCenter
+                iconText: back ? "󰁍" : "󰒓"
+                iconSize: Style.font.title
+                tooltipText: root.tr(back ? "Back" : "Settings")
+                foreground: root.fg
+                fontFamily: root.font
+                bordered: true
+                hasCursor: root.cursor === 0 && root.headCol === (back ? 0 : 1)
+                onClicked: { root.cursor = 0; root.headCol = back ? 0 : 1; root.activate(0) }
               }
             }
           }
