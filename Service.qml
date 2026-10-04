@@ -174,7 +174,7 @@ Item {
 
     var a = root.decision.action
     if (a === "break") root.startBreak(root.decision.kind)
-    else if (a === "micro" && !root.microShown) { root.microShown = true; microTimeout.restart(); root.sound("step") }
+    else if (a === "micro" && !root.microShown) { root.microShown = true; microTimeout.restart(); root.sound("micro") }
     else if (a === "warn" && !root.warned) { root.warned = true; root.notify(root.tr("Break in a minute")) }
   }
 
@@ -204,7 +204,6 @@ Item {
     root.st = L.credit(root.st, root.breakKind)
     root.breakSteps = []
     root.breakKind = ""
-    if (reason === "done") root.sound("end")
   }
 
   function postponeBreak() {
@@ -224,12 +223,13 @@ Item {
 
   // Shown for 3 minutes at most, a reminder sound every minute.
   Timer { id: microTimeout; interval: 180000; onTriggered: root.finishMicro(false) }
-  Timer { interval: 60000; repeat: true; running: root.microShown; onTriggered: root.sound("step") }
+  Timer { interval: 60000; repeat: true; running: root.microShown; onTriggered: root.sound("micro") }
 
   function finishMicro(done) {
     if (!root.microShown) return
     root.microShown = false
     microTimeout.stop()
+    if (done) root.sound("end")
     root.st = L.credit(root.st, "micro")
     root.record({ ts: Date.now(), kind: "micro", completed: done })
   }
@@ -255,7 +255,7 @@ Item {
   })
   onIndicatorStateChanged: Quickshell.execDetached(["sh", "-c", 'printf "%s" "$1" > "$XDG_RUNTIME_DIR/predmaxim-breaks.json"', "sh", root.indicatorState])
 
-  readonly property var cues: ({ start: "bell", step: "message", end: "complete" })
+  readonly property var cues: ({ start: "bell", micro: "window-attention", step: "message", end: "complete" })
   function sound(cue) {
     if (!root.settings.soundEnabled) return
     Quickshell.execDetached(["pw-play", "--volume=" + (root.settings.soundVolume / 100),

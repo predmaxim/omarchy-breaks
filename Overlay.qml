@@ -37,7 +37,7 @@ Item {
       remaining = s.breakSteps[index].seconds
       stepAt = Date.now()
       s.sound("step")
-    } else summary = true
+    } else { summary = true; s.sound("end") }
   }
 
   Timer {
