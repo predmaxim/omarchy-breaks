@@ -336,33 +336,32 @@ function todayStats(history, now) {
 
 // ------------------------------------------------------------ panel rows
 
-// The modal's rows, walked with ↑/↓: on/off and the actions on top, then the
-// tab row (←/→ switches tabs), then the tab's settings. Labels are English, for tr().
-function rowsFor(tab, s) {
-  var rows = [
-    { type: "switch", key: "enabled", label: "Breaks" },
-    { type: "action", key: "breakNow", label: "Break now" }
-  ]
-  if (s.strictness !== "hard" || s.debug) rows.push({ type: "action", key: "pause", label: "Pause 1 h" })
-  rows.push({ type: "tabs" })
-  if (tab === "schedule") {
-    rows.push({ type: "num", key: "eyesMin", label: "Eyes: no earlier than, min", step: 5 },
+// The modal's rows, walked with ↑/↓. page "main": the header (on/off and
+// settings buttons), the actions and the everyday switches; page "settings":
+// the rest and Back. Labels are English, for tr().
+function rowsFor(page, s) {
+  if (page === "settings") {
+    var rows = [
+      { type: "num", key: "eyesMin", label: "Eyes: no earlier than, min", step: 5 },
       { type: "num", key: "eyesMax", label: "Eyes: no later than, min", step: 5 },
-      { type: "num", key: "bodyEvery", label: "Body: every, min", step: 5 },
-      { type: "switch", key: "microEnabled", label: "Micro-pauses 20-20-20" })
+      { type: "num", key: "bodyEvery", label: "Body: every, min", step: 5 }
+    ]
     if (s.microEnabled) rows.push({ type: "num", key: "microEvery", label: "Micro-pause every, min", step: 5 })
-  } else if (tab === "mode") {
-    rows.push({ type: "choice", key: "strictness", label: "Strictness", options: STRICTNESS },
-      { type: "num", key: "postponeCount", label: "Postpones per break", step: 1 },
-      { type: "switch", key: "calendar", label: "Respect the calendar" },
-      { type: "switch", key: "meetingNudges", label: "Movement tips during meetings" },
-      { type: "switch", key: "showMinutes", label: "Minutes in the bar" },
-      { type: "switch", key: "debug", label: "Debug" })
-  } else {
-    rows.push({ type: "switch", key: "soundEnabled", label: "Sounds" })
+    rows.push({ type: "num", key: "postponeCount", label: "Postpones per break", step: 1 })
     if (s.soundEnabled) rows.push({ type: "num", key: "soundVolume", label: "Volume, %", step: 10 })
+    rows.push({ type: "switch", key: "showMinutes", label: "Minutes in the bar" },
+      { type: "switch", key: "debug", label: "Debug" },
+      { type: "action", key: "back", label: "Back" })
+    return rows
   }
-  return rows
+  var main = [{ type: "head" }, { type: "action", key: "breakNow", label: "Break now" }]
+  if (s.strictness !== "hard" || s.debug) main.push({ type: "action", key: "pause", label: "Pause 1 h" })
+  main.push({ type: "switch", key: "soundEnabled", label: "Sounds" },
+    { type: "choice", key: "strictness", label: "Strictness", options: STRICTNESS },
+    { type: "switch", key: "calendar", label: "Respect the calendar" },
+    { type: "switch", key: "meetingNudges", label: "Movement tips during meetings" },
+    { type: "switch", key: "microEnabled", label: "Micro-pauses 20-20-20" })
+  return main
 }
 
 // ←/→ (dx = -1/1) on a row: the new value, or null when nothing changes.

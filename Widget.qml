@@ -10,8 +10,10 @@ import "I18n.js" as I18n
 // The bar shows the icon through predmaxim.indicators (Indicator.qml); this
 // widget stays in the layout, hidden, for its settings and IPC
 // (`omarchy-shell predmaxim.breaks-panel toggle`). Its modal, in the middle of
-// the screen like todo's, is a list of rows (logic.js rowsFor): ↑/↓ walk them,
-// ←/→ change the value or the tab, Enter toggles or presses, Esc closes.
+// the screen like todo's, is a list of rows (logic.js rowsFor) on two pages:
+// main (on/off and settings buttons in the header, everyday switches) and
+// settings. ↑/↓ walk the rows, ←/→ change the value or the header button,
+// Enter toggles or presses, Esc goes back from settings, then closes.
 // Rare settings (break lengths, idle threshold…) stay in shell.json. Settings
 // are written by the service into this entry.
 Panel {
@@ -21,9 +23,10 @@ Panel {
 
   readonly property var tr: I18n.translator(I18n.textLanguage(Quickshell.env))
   property var service: null
-  property string tab: "schedule"
-  readonly property var tabs: ["schedule", "mode", "sound"]
+  property string page: "main"
   property int cursor: 0
+  // Header button under the cursor: 0 on/off, 1 settings.
+  property int headCol: 0
 
   // The service is a separate plugin instance; look it up until it is there.
   Timer {
@@ -37,7 +40,7 @@ Panel {
   readonly property var s: service ? service.settings : L.normalize({})
   readonly property var d: service ? service.decision : ({ kind: "eyes", in: 0 })
   readonly property int minutes: Math.ceil(d.in / 60)
-  readonly property var rows: L.rowsFor(tab, s)
+  readonly property var rows: L.rowsFor(page, s)
   readonly property color fg: Color.popups.text
   readonly property color dim: Qt.darker(fg, 1.4)
   readonly property string font: Style.font.family
@@ -49,7 +52,7 @@ Panel {
   readonly property var today: service ? L.todayStats(service.history, Date.now()) : ({ breaks: 0, reps: {} })
   readonly property int streak: service ? L.streak(service.history, Date.now()) : 0
 
-  onOpenedChanged: if (opened) { root.cursor = 0; Qt.callLater(function() { keyCatcher.forceActiveFocus() }) }
+  onOpenedChanged: if (opened) { root.page = "main"; root.cursor = 1; Qt.callLater(function() { keyCatcher.forceActiveFocus() }) }
   onRowsChanged: if (root.cursor >= root.rows.length) root.cursor = root.rows.length - 1
 
   function set(key, value) {
@@ -63,12 +66,21 @@ Panel {
     pointerGate.reset()
   }
 
-  // ←/→: the tab on the tab row, the value elsewhere.
+  function showPage(p) {
+    root.page = p
+    root.cursor = p === "main" ? 1 : 0
+  }
+  function back() {
+    if (root.page === "settings") root.showPage("main")
+    else root.close()
+  }
+
+  // ←/→: the button in the header, the value elsewhere.
   function change(i, dx) {
     var row = root.rows[i]
     if (!row) return
-    if (row.type === "tabs") {
-      root.tab = root.tabs[(root.tabs.indexOf(root.tab) + dx + root.tabs.length) % root.tabs.length]
+    if (row.type === "head") {
+      root.headCol = Math.max(0, Math.min(1, root.headCol + dx))
       return
     }
     var c = L.adjust(row, root.s, dx)
@@ -81,8 +93,12 @@ Panel {
     if (!row || !root.service) return
     if (row.key === "breakNow") { root.close(); root.service.startBreak(root.d.kind) }
     else if (row.key === "pause") { root.service.pause(60); root.close() }
+    else if (row.key === "back") root.showPage("main")
+    else if (row.type === "head") {
+      if (root.headCol === 0) root.set("enabled", !root.s.enabled)
+      else root.showPage("settings")
+    }
     else if (row.type === "switch" || row.type === "choice") root.change(i, 1)
-    else if (row.type === "tabs") root.change(i, 1)
   }
 
   visible: false
@@ -128,7 +144,7 @@ Panel {
           else if (dx) root.change(root.cursor, dx)
         }
         onActivateRequested: root.activate(root.cursor)
-        onCloseRequested: root.close()
+        onCloseRequested: root.back()
 
         PointerMoveGate { id: pointerGate; referenceItem: column }
 
@@ -141,7 +157,7 @@ Panel {
 
           PanelHero {
             width: column.width
-            title: root.tr("Breaks")
+            title: root.tr(root.page === "settings" ? "Settings" : "Breaks")
             meta: root.nextText
             foreground: root.fg
             fontFamily: root.font
@@ -151,12 +167,29 @@ Panel {
               font.family: root.font
               font.pixelSize: Style.font.display
             }
-            trailingControl: Text {
-              text: root.s.enabled ? root.minutes : ""
-              color: root.fg
-              font.family: root.font
-              font.pixelSize: Style.font.displayLarge
-              font.bold: true
+            // On/off and settings; ←/→ on the header row picks one.
+            trailingControl: Row {
+              visible: root.page === "main"
+              spacing: Style.space(6)
+              Repeater {
+                model: [
+                  { icon: "󰐥", tip: root.s.enabled ? "Turn off" : "Turn on" },
+                  { icon: "󰒓", tip: "Settings" }
+                ]
+                Button {
+                  required property var modelData
+                  required property int index
+                  iconText: modelData.icon
+                  iconSize: Style.font.title
+                  tooltipText: root.tr(modelData.tip)
+                  foreground: root.fg
+                  fontFamily: root.font
+                  bordered: true
+                  active: index === 0 && root.s.enabled
+                  hasCursor: root.cursor === 0 && root.headCol === index
+                  onClicked: { root.cursor = 0; root.headCol = index; root.activate(0) }
+                }
+              }
             }
           }
 
@@ -177,6 +210,7 @@ Panel {
               id: row
               required property var modelData
               required property int index
+              visible: modelData.type !== "head"
               width: column.width
               implicitHeight: Math.max(Style.space(42), control.implicitHeight + Style.spacing.xs * 2)
               foreground: root.fg
@@ -191,7 +225,6 @@ Panel {
               }
 
               Text {
-                visible: row.modelData.type !== "tabs"
                 anchors.left: parent.left
                 anchors.leftMargin: Style.spacing.rowPaddingX
                 anchors.right: control.left
@@ -211,22 +244,9 @@ Panel {
                 id: control
                 anchors.right: parent.right
                 anchors.rightMargin: Style.spacing.rowPaddingX
-                anchors.left: row.modelData.type === "tabs" ? parent.left : undefined
-                anchors.leftMargin: Style.spacing.rowPaddingX
                 anchors.verticalCenter: parent.verticalCenter
-                sourceComponent: ({ tabs: tabsControl, num: numControl, switch: switchControl, choice: choiceControl })[row.modelData.type] || null
+                sourceComponent: ({ num: numControl, switch: switchControl, choice: choiceControl })[row.modelData.type] || null
 
-                Component {
-                  id: tabsControl
-                  ButtonGroup {
-                    options: [{ value: "schedule", label: root.tr("Schedule") }, { value: "mode", label: root.tr("Mode") }, { value: "sound", label: root.tr("Sound") }]
-                    value: root.tab
-                    focusable: false
-                    foreground: root.fg
-                    fontFamily: root.font
-                    onChanged: function(v) { root.tab = v }
-                  }
-                }
                 Component {
                   id: choiceControl
                   ButtonGroup {
