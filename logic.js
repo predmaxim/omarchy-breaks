@@ -357,10 +357,10 @@ function rowsFor(page, s) {
   var main = [{ type: "head" }, { type: "action", key: "breakNow", label: "Break now" }]
   if (s.strictness !== "hard" || s.debug) main.push({ type: "action", key: "pause", label: "Pause 1 h" })
   main.push({ type: "switch", key: "soundEnabled", label: "Sounds" },
-    { type: "choice", key: "strictness", label: "Strictness", options: STRICTNESS },
     { type: "switch", key: "calendar", label: "Respect the calendar" },
     { type: "switch", key: "meetingNudges", label: "Movement tips during meetings" },
-    { type: "switch", key: "microEnabled", label: "Micro-pauses 20-20-20" })
+    { type: "switch", key: "microEnabled", label: "Micro-pauses 20-20-20" },
+    { type: "choice", key: "strictness", label: "Strictness", options: STRICTNESS })
   return main
 }
 
