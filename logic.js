@@ -65,23 +65,6 @@ function readEntry(text, id) {
   return {}
 }
 
-function decide() {}
-function postpone() {}
-function skip() {}
-function nudgeDue() {}
-function micBusy() {}
-function excluded() {}
-function parseProbe() {}
-var EXERCISES = []
-var NUDGES = []
-var TIPS = []
-function pickBreak() {}
-function reps() {}
-function streak() {}
-function dayKey() {}
-function parseHistory() {}
-function todayStats() {}
-
 // ------------------------------------------------------------ counters
 
 // Seconds of activity since each need was last met.
@@ -172,4 +155,176 @@ function plan(st, c, now, events) {
   if (st.snoozeUntil > now) p.in = Math.max(p.in, (st.snoozeUntil - now) / 1000)
   p.in = Math.max(0, p.in)
   return p
+}
+
+// What to do this second. ctx: events (null: no calendar), busy (sensors),
+// freeFor (seconds since nothing blocks), afterEvent (the last block was a meeting).
+function decide(st, c, now, ctx) {
+  var p = plan(st, c, now, ctx.events)
+  var blocked = ctx.busy || eventAt(ctx.events, now) !== null
+  if (p.in <= 0) {
+    if (blocked || ctx.freeFor < (ctx.afterEvent ? c.after : c.grace)) return { action: "wait", kind: p.kind, in: 0 }
+    return { action: "break", kind: p.kind, in: 0 }
+  }
+  if (c.micro && st.micro >= c.micro && p.in >= c.microGap && !blocked) return { action: "micro", kind: p.kind, in: p.in }
+  if (p.in <= c.lead && !blocked) return { action: "warn", kind: p.kind, in: p.in }
+  return { action: "none", kind: p.kind, in: p.in }
+}
+
+// Postponed by postponeMinutes, at most postponeCount times per break.
+function postpone(st, c, s, now) {
+  if (st.postponed >= s.postponeCount) return null
+  var n = copy(st)
+  n.postponed++
+  n.snoozeUntil = now + c.postpone * 1000
+  return n
+}
+
+// No skipping in hard mode.
+function skip(st, kind, s) {
+  return s.strictness === "hard" ? null : credit(st, kind)
+}
+
+// ------------------------------------------------------------ meetings
+
+var NUDGES = [
+  "Stand up for the rest of the call",
+  "25 calf raises while you listen",
+  "10 squats with the camera off",
+  "Look out of the window for 20 seconds",
+  "Roll your shoulders back 10 times"
+]
+
+var TIPS = [
+  "Drink a glass of water",
+  "Go to the window: daylight is good for the eyes",
+  "Walk to the kitchen and back"
+]
+
+// Every `nudge` seconds of a meeting, counted from its start or the last nudge.
+function nudgeDue(event, now, last, c) {
+  if (!c.nudge || !event) return false
+  return now - Math.max(event.start, last) >= c.nudge * 1000
+}
+
+// ------------------------------------------------------------ sensors
+
+// A capture stream that is not muted: someone is recording the microphone.
+// The same test as the shell's microphone widget.
+function micBusy(nodes) {
+  for (var i = 0; nodes && i < nodes.length; i++) {
+    var n = nodes[i]
+    if (n && n.isStream && n.isSink === false && !(n.audio && n.audio.muted)) return true
+  }
+  return false
+}
+
+function excluded(cls, list) {
+  var c = String(cls || "").toLowerCase()
+  if (!c) return false
+  return String(list || "").split(",").some(function(x) { x = x.trim().toLowerCase(); return x !== "" && c.indexOf(x) >= 0 })
+}
+
+// `hyprctl activewindow -j`, "@@", then "cam" when a /dev/video* is open.
+// Hyprland's fullscreen: 0 none, 1 maximized, 2 fullscreen.
+function parseProbe(text) {
+  var parts = String(text || "").split("@@")
+  var win = {}
+  try { win = JSON.parse(parts[0]) || {} } catch (e) { win = {} }
+  return {
+    fullscreen: win.fullscreen === true || win.fullscreen >= 2,
+    cls: String(win.class || ""),
+    camera: parts.length > 1 && parts[1].indexOf("cam") >= 0
+  }
+}
+
+// ------------------------------------------------------------ exercises
+
+// One QML file per eye exercise (they differ); body steps share BodyStep.qml.
+var EXERCISES = [
+  { id: "saccades", category: "eyes", title: "Catch the dot", file: "Saccades.qml", seconds: 40, needsInput: true },
+  { id: "eight", category: "eyes", title: "Follow the figure eight", file: "Eight.qml", seconds: 40, needsInput: false },
+  { id: "farNumber", category: "eyes", title: "Look far away", file: "FarNumber.qml", seconds: 30, needsInput: true },
+  { id: "nearFar", category: "eyes", title: "Near and far", file: "NearFar.qml", seconds: 40, needsInput: false },
+  { id: "palming", category: "eyes", title: "Palming", file: "Palming.qml", seconds: 45, needsInput: false },
+  { id: "blink", category: "eyes", title: "Slow blinks", file: "Blink.qml", seconds: 30, needsInput: false },
+  { id: "squats", category: "body", title: "Squats", file: "BodyStep.qml", reps: 15, perRep: 3, needsInput: false },
+  { id: "calves", category: "body", title: "Calf raises", file: "BodyStep.qml", reps: 25, perRep: 2, needsInput: false },
+  { id: "shoulders", category: "body", title: "Shoulder rolls", file: "BodyStep.qml", reps: 10, perRep: 4, needsInput: false },
+  { id: "neck", category: "body", title: "Neck turns", file: "BodyStep.qml", reps: 6, perRep: 5, needsInput: false },
+  { id: "hips", category: "body", title: "Hip flexor stretch, each side", file: "BodyStep.qml", reps: 4, perRep: 10, needsInput: false },
+  { id: "plank", category: "body", title: "Plank", file: "BodyStep.qml", seconds: 40, needsInput: false },
+  { id: "breath478", category: "breath", title: "Breathing 4-7-8", file: "Breath.qml", pattern: [4, 7, 8, 0], seconds: 76, needsInput: false },
+  { id: "breathBox", category: "breath", title: "Box breathing", file: "Breath.qml", pattern: [4, 4, 4, 4], seconds: 64, needsInput: false }
+]
+
+// +1 rep every 3 days of streak, up to twice the base.
+function reps(base, days) {
+  return Math.min(base * 2, base + Math.floor(days / 3))
+}
+
+function takeOne(category, avoid, days, rnd) {
+  var pool = EXERCISES.filter(function(e) { return e.category === category && avoid.indexOf(e.id) < 0 })
+  if (pool.length === 0) pool = EXERCISES.filter(function(e) { return e.category === category })
+  var e = pool[Math.floor(rnd() * pool.length) % pool.length]
+  avoid.push(e.id)
+  var n = e.reps ? reps(e.reps, days) : 0
+  return { id: e.id, category: e.category, title: e.title, file: e.file, needsInput: e.needsInput,
+    reps: n, seconds: e.reps ? n * e.perRep : e.seconds, pattern: e.pattern || null }
+}
+
+// Eyes: one exercise, two when the break is 80 s or longer. Body: two body
+// steps (the second is breathing on odd streak days) and one for the eyes.
+// Nothing from the last break repeats.
+function pickBreak(kind, c, lastIds, days, rnd) {
+  var avoid = (lastIds || []).slice()
+  rnd = rnd || Math.random
+  var one = function(category) { return takeOne(category, avoid, days, rnd) }
+  if (kind === "eyes") return c.eyesBreak >= 80 ? [one("eyes"), one("eyes")] : [one("eyes")]
+  return [one("body"), one(days % 2 ? "breath" : "body"), one("eyes")]
+}
+
+// ------------------------------------------------------------ history
+
+function pad(n) { return n < 10 ? "0" + n : String(n) }
+
+function dayKey(ms) {
+  var d = new Date(ms)
+  return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate())
+}
+
+function parseHistory(text) {
+  var out = []
+  String(text || "").split("\n").forEach(function(line) {
+    if (!line.trim()) return
+    try { var h = JSON.parse(line); if (h && typeof h.ts === "number") out.push(h) } catch (e) {}
+  })
+  return out
+}
+
+// Days in a row with a finished break; a skip breaks the streak, a day not
+// over yet does not.
+function streak(history, now) {
+  var good = {}, bad = {}
+  history.forEach(function(h) {
+    var k = dayKey(h.ts)
+    if (h.skipped) bad[k] = true
+    else if (h.completed) good[k] = true
+  })
+  var d = new Date(now)
+  if (bad[dayKey(now)]) return 0
+  if (!good[dayKey(now)]) d.setDate(d.getDate() - 1)
+  var n = 0
+  while (good[dayKey(d.getTime())] && !bad[dayKey(d.getTime())]) { n++; d.setDate(d.getDate() - 1) }
+  return n
+}
+
+function todayStats(history, now) {
+  var today = dayKey(now), out = { breaks: 0, reps: {} }
+  history.forEach(function(h) {
+    if (!h.completed || h.kind === "micro" || dayKey(h.ts) !== today) return
+    out.breaks++
+    ;(h.exercises || []).forEach(function(e) { if (e.reps) out.reps[e.id] = (out.reps[e.id] || 0) + e.reps })
+  })
+  return out
 }

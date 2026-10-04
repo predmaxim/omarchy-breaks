@@ -97,3 +97,84 @@ assert.strictEqual(L.nextEvent(evs, Date.parse("2026-10-05T09:00:00Z")).title, "
 assert.strictEqual(L.nextEvent(evs, Date.parse("2026-10-05T11:00:00Z")), null)
 
 console.log("schedule ok")
+
+// --- decide
+const ctx = (o) => Object.assign({ events: null, busy: false, freeFor: 999, afterEvent: false }, o)
+assert.strictEqual(L.decide(S(0, 0), c, now, ctx()).action, "none")
+assert.strictEqual(L.decide(S(39.5, 0), c, now, ctx()).action, "warn")
+assert.strictEqual(L.decide(S(40, 0), c, now, ctx()).action, "break")
+assert.strictEqual(L.decide(S(40, 0), c, now, ctx({ busy: true })).action, "wait")
+assert.strictEqual(L.decide(S(40, 0), c, now, ctx({ freeFor: 10 })).action, "wait")          // 30 s grace
+assert.strictEqual(L.decide(S(40, 0), c, now, ctx({ freeFor: 60, afterEvent: true })).action, "wait")  // 120 s after a meeting
+assert.strictEqual(L.decide(S(40, 0), c, now, ctx({ events: [ev(-5, 30)] })).action, "wait")
+// Micro: due at 20 min, never within 5 min of a break, never while busy.
+assert.strictEqual(L.decide(S(20, 20, { micro: 20 * M }), c, now, ctx()).action, "micro")
+assert.strictEqual(L.decide(S(36, 36, { micro: 20 * M }), c, now, ctx()).action, "none")
+assert.strictEqual(L.decide(S(20, 20, { micro: 20 * M }), c, now, ctx({ busy: true })).action, "none")
+assert.strictEqual(L.decide(S(20, 20, { micro: 20 * M }), L.seconds(L.normalize({ microEnabled: false })), now, ctx()).action, "none")
+
+// --- postpone and skip (Review Focus 5)
+const hard = L.normalize({}), soft = L.normalize({ strictness: "soft" })
+let s1 = L.postpone(S(40, 0), c, hard, now)
+assert.deepStrictEqual([s1.postponed, s1.snoozeUntil], [1, now + 300000])
+let s2 = L.postpone(s1, c, hard, now)
+assert.strictEqual(s2.postponed, 2)
+assert.strictEqual(L.postpone(s2, c, hard, now), null)
+assert.strictEqual(L.skip(S(40, 0), "eyes", hard), null)
+assert.strictEqual(L.skip(S(40, 0), "eyes", soft).eyes, 0)
+
+// --- meeting nudges
+const cn = L.seconds(L.normalize({ meetingNudges: true }))
+assert.strictEqual(L.nudgeDue(ev(-24, 30), now, 0, cn), false)
+assert.strictEqual(L.nudgeDue(ev(-25, 30), now, 0, cn), true)
+assert.strictEqual(L.nudgeDue(ev(-50, 30), now, now - 10 * 60000, cn), false)
+assert.strictEqual(L.nudgeDue(ev(-50, 30), now, 0, c), false)        // off by default
+assert.strictEqual(L.nudgeDue(null, now, 0, cn), false)
+assert.ok(L.NUDGES.length >= 4 && L.TIPS.length >= 3)
+
+// --- sensors
+assert.strictEqual(L.micBusy([{ isStream: true, isSink: false, audio: { muted: false } }]), true)
+assert.strictEqual(L.micBusy([{ isStream: true, isSink: true, audio: { muted: false } }]), false)
+assert.strictEqual(L.micBusy([{ isStream: true, isSink: false, audio: { muted: true } }]), false)
+assert.strictEqual(L.micBusy([null, { isStream: false, isSink: false }]), false)
+assert.strictEqual(L.excluded("Zoom", "zoom, teams"), true)
+assert.strictEqual(L.excluded("firefox", "zoom,teams"), false)
+assert.strictEqual(L.excluded("", ""), false)
+assert.deepStrictEqual(L.parseProbe('{"class":"mpv","fullscreen":2}\n@@\ncam\n'), { fullscreen: true, cls: "mpv", camera: true })
+assert.deepStrictEqual(L.parseProbe('{"class":"kitty","fullscreen":1}\n@@\n'), { fullscreen: false, cls: "kitty", camera: false })
+assert.deepStrictEqual(L.parseProbe('{}\n@@\n'), { fullscreen: false, cls: "", camera: false })
+assert.deepStrictEqual(L.parseProbe("garbage"), { fullscreen: false, cls: "", camera: false })
+
+// --- exercises
+const zero = () => 0
+let eyes = L.pickBreak("eyes", c, [], 0, zero)
+assert.strictEqual(eyes.length, 2)                                     // 90 s -> two
+assert.ok(eyes.every(s => s.category === "eyes"))
+assert.notStrictEqual(eyes[0].id, eyes[1].id)
+assert.ok(!L.pickBreak("eyes", c, [eyes[0].id], 0, zero).some(s => s.id === eyes[0].id))   // no repeat of last time
+assert.strictEqual(L.pickBreak("eyes", L.seconds(L.normalize({ eyesBreakSeconds: 45 })), [], 0, zero).length, 1)
+let body = L.pickBreak("body", c, [], 0, zero)
+assert.deepStrictEqual(body.map(s => s.category), ["body", "body", "eyes"])
+assert.deepStrictEqual(L.pickBreak("body", c, [], 1, zero).map(s => s.category), ["body", "breath", "eyes"])
+assert.ok(body.every(s => s.file && s.seconds > 0))
+assert.strictEqual(L.reps(15, 0), 15); assert.strictEqual(L.reps(15, 7), 17); assert.strictEqual(L.reps(10, 99), 20)
+
+// --- history and streak
+const day = (d, h) => new Date(2026, 9, d, h || 12).getTime()
+const hist = L.parseHistory([
+  JSON.stringify({ ts: day(2), kind: "body", completed: true, exercises: [{ id: "squats", reps: 15 }] }),
+  "not json",
+  JSON.stringify({ ts: day(3), kind: "eyes", completed: true, exercises: [] }),
+  JSON.stringify({ ts: day(4), kind: "body", completed: true, exercises: [{ id: "squats", reps: 16 }, { id: "calves", reps: 25 }] }),
+  JSON.stringify({ ts: day(4, 15), kind: "body", completed: true, exercises: [{ id: "squats", reps: 16 }] }),
+  ""
+].join("\n"))
+assert.strictEqual(hist.length, 4)
+assert.strictEqual(L.streak(hist, day(4, 18)), 3)
+assert.strictEqual(L.streak(hist, day(5, 9)), 3)                       // today not done yet: no break in the streak
+assert.strictEqual(L.streak(hist, day(6, 9)), 0)
+assert.strictEqual(L.streak(hist.concat([{ ts: day(4, 16), kind: "eyes", skipped: true }]), day(4, 18)), 0)
+assert.deepStrictEqual(L.todayStats(hist, day(4, 18)), { breaks: 2, reps: { squats: 32, calves: 25 } })
+assert.strictEqual(L.dayKey(day(4)), "2026-10-04")
+
+console.log("decide ok")
