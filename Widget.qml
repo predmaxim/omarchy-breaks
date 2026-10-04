@@ -55,7 +55,7 @@ Panel {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: "󰛊"
+    text: "󰅶"
     tooltipText: root.nextText
     onPressed: function(b) { root.toggle() }
   }
