@@ -11,6 +11,7 @@ var DEFAULTS = {
   strictness: "hard", postponeCount: 2, postponeMinutes: 5,
   soundEnabled: true, soundVolume: 50,
   calendar: true, meetingNudges: false, meetingNudgeEvery: 25,
+  showMinutes: false,
   exclude: "zoom,teams",
   debug: false
 }
@@ -355,6 +356,7 @@ function rowsFor(tab, s) {
       { type: "num", key: "postponeCount", label: "Postpones per break", step: 1 },
       { type: "switch", key: "calendar", label: "Respect the calendar" },
       { type: "switch", key: "meetingNudges", label: "Movement tips during meetings" },
+      { type: "switch", key: "showMinutes", label: "Minutes in the bar" },
       { type: "switch", key: "debug", label: "Debug" })
   } else {
     rows.push({ type: "switch", key: "soundEnabled", label: "Sounds" })

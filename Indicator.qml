@@ -5,10 +5,9 @@ import qs.Commons
 import qs.Ui
 import "@PLUGIN_DIR@/I18n.js" as I18n
 
-// predmaxim.breaks among the bar's indicators: a clock and the minutes to the
-// next break, lit while breaks are on. Click toggles the modal of the hidden
-// widget (Widget.qml). The service writes the state to
-// $XDG_RUNTIME_DIR/predmaxim-breaks.json.
+// predmaxim.breaks among the bar's indicators: a clock (and the minutes to the
+// next break if showMinutes is on), lit while breaks are on. Click toggles the modal of the hidden widget (Widget.qml). The service
+// writes the state to $XDG_RUNTIME_DIR/predmaxim-breaks.json.
 // keep-custom-widgets.sh copies this file into the predmaxim.indicators clone
 // as indicators/Breaks.qml and fills in @PLUGIN_DIR@.
 BarIndicator {
@@ -16,7 +15,8 @@ BarIndicator {
 
   readonly property var tr: I18n.translator(I18n.textLanguage(function(name) { return Quickshell.env(name) }))
   property var info: ({ enabled: false, minutes: 0, kind: "eyes", busy: "" })
-  readonly property string label: "󰥔 " + info.minutes
+
+  readonly property string label: info.showMinutes ? "󰥔 " + info.minutes : "󰥔"
 
   active: info.enabled
   // The minutes make it wider than an icon: the slot and the glyph canvas grow

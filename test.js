@@ -192,7 +192,7 @@ const D = L.normalize({})
 const ids = (tab, st) => L.rowsFor(tab, st).map(r => r.key || r.type)
 assert.deepStrictEqual(ids("schedule", D), ["enabled", "breakNow", "tabs", "eyesMin", "eyesMax", "bodyEvery", "microEnabled", "microEvery"])
 assert.deepStrictEqual(ids("schedule", L.normalize({ microEnabled: false })).slice(-1), ["microEnabled"])
-assert.deepStrictEqual(ids("mode", L.normalize({ strictness: "soft" })), ["enabled", "breakNow", "pause", "tabs", "strictness", "postponeCount", "calendar", "meetingNudges", "debug"])
+assert.deepStrictEqual(ids("mode", L.normalize({ strictness: "soft" })), ["enabled", "breakNow", "pause", "tabs", "strictness", "postponeCount", "calendar", "meetingNudges", "showMinutes", "debug"])
 assert.deepStrictEqual(ids("sound", D), ["enabled", "breakNow", "tabs", "soundEnabled", "soundVolume"])
 const row = (tab, key) => L.rowsFor(tab, D).filter(r => r.key === key)[0]
 assert.deepStrictEqual(L.adjust(row("schedule", "eyesMin"), D, 1), { key: "eyesMin", value: 35 })

@@ -249,6 +249,7 @@ Item {
   // minutes to the next break and what it is. Written when it changes.
   readonly property string indicatorState: JSON.stringify({
     enabled: root.settings.enabled,
+    showMinutes: root.settings.showMinutes,
     minutes: Math.ceil(root.decision.in / 60),
     kind: root.decision.kind,
     busy: root.busyReason
