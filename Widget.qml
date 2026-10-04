@@ -228,6 +228,8 @@ Panel {
             }
           }
 
+          PanelSeparator { width: column.width; foreground: root.fg }
+
           Repeater {
             model: root.rows
 
