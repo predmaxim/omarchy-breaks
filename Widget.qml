@@ -6,7 +6,7 @@ import qs.Ui
 import "logic.js" as L
 import "I18n.js" as I18n
 
-// A meditating figure; minutes to the next break are in the tooltip. A click opens the panel at
+// A clock; minutes to the next break are in the tooltip. A click opens the panel at
 // the icon: what comes next, "break now" and "pause", the everyday settings in
 // three tabs. Rare ones (break lengths, idle threshold…) stay in shell.json.
 // Settings are written by the service into this widget's entry.
@@ -55,7 +55,9 @@ Panel {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: "󱅻"
+    text: "󰥔"
+    // The clock glyph is drawn smaller than its neighbours at the default size.
+    fontSize: Style.font.subtitle
     tooltipText: root.nextText
     onPressed: function(b) { root.toggle() }
   }
