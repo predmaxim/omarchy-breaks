@@ -31,7 +31,10 @@ Item {
         screen: modelData
         visible: !Hyprland.focusedMonitor || modelData.name === Hyprland.focusedMonitor.name
         anchors.top: true
-        margins.top: 12
+        // Below the bar like a toast, over the windows without pushing them.
+        exclusionMode: ExclusionMode.Normal
+        exclusiveZone: 0
+        margins.top: Style.gapsOut
         implicitWidth: card.implicitWidth + 64
         implicitHeight: 96
         color: "transparent"
