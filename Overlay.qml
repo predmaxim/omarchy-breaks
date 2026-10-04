@@ -20,8 +20,11 @@ Item {
   property real remaining: 0
   property real touchedAt: 0
   property real stepAt: 0
+  property real zeroAt: 0
   readonly property var step: open && index < s.breakSteps.length ? s.breakSteps[index] : null
-  readonly property bool paused: step !== null && !step.needsInput && Date.now() - touchedAt < 3000
+  // Date.now() is not a binding dependency: `clock` ticks so `paused` clears.
+  property real clock: Date.now()
+  readonly property bool paused: step !== null && !step.needsInput && clock - touchedAt < 3000
   property bool summary: false
 
   onOpenChanged: if (open) { index = 0; summary = false; remaining = s.breakSteps[0].seconds; stepAt = Date.now(); touchedAt = 0 }
@@ -40,9 +43,13 @@ Item {
   Timer {
     interval: 1000; repeat: true; running: root.open && !root.summary
     onTriggered: {
+      root.clock = Date.now()
       if (root.paused) return
       root.remaining = Math.max(0, root.remaining - 1)
-      if (root.remaining === 0 && root.step && !root.step.needsInput) root.next()
+      if (root.remaining > 0) root.zeroAt = root.clock
+      if (root.remaining > 0 || !root.step) return
+      // An input step ends itself; if it never does (failed to load, no answer), 20 s later.
+      if (!root.step.needsInput || root.clock - root.zeroAt > 20000) root.next()
     }
   }
   // The summary card stays 8 s, then the break is done.
@@ -109,6 +116,8 @@ Item {
             }
             Loader {
               id: exercise
+              // One copy, on the focused monitor: two would finish twice and pick two digits.
+              active: win.main
               width: parent.width
               height: parent.height - 220
               source: root.step ? "exercises/" + root.step.file : ""

@@ -96,6 +96,11 @@ assert.strictEqual(L.eventAt(evs, Date.parse("2026-10-05T11:00:00Z")), null)
 assert.strictEqual(L.nextEvent(evs, Date.parse("2026-10-05T09:00:00Z")).title, "a")
 assert.strictEqual(L.nextEvent(evs, Date.parse("2026-10-05T11:00:00Z")), null)
 
+// Overdue and a meeting too close to fit the break: after the meeting, never onto its start.
+const evS = (fromSec, toMin) => ({ start: now + fromSec * 1000, end: now + toMin * 60000, title: "m" })
+assert.deepStrictEqual(L.plan(S(90, 90), c, now, [evS(100, 30)]), { kind: "body", in: 30 * M + 120 })
+assert.deepStrictEqual(L.plan(S(10, 70), c, now, [evS(200, 30)]), { kind: "body", in: 30 * M + 120 })
+
 console.log("schedule ok")
 
 // --- decide

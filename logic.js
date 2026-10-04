@@ -138,9 +138,11 @@ function nextEvent(events, now) {
 function plan(st, c, now, events) {
   var bodyIn = c.body - st.body
   var mid = (c.eyesMin + c.eyesMax) / 2
-  var p = bodyIn - (mid - st.eyes) <= c.merge
+  // Body due: the long break takes the eyes too, whatever they owe.
+  var p = bodyIn <= 0 || bodyIn - (mid - st.eyes) <= c.merge
     ? { kind: "body", in: Math.min(bodyIn, c.eyesMax - st.eyes) }
     : { kind: "eyes", in: mid - st.eyes }
+  p.in = Math.max(0, p.in)
   var len = p.kind === "body" ? c.bodyBreak : c.eyesBreak
   // ponytail: only the next meeting is checked; two back-to-back meetings push the break past the first one only
   var next = nextEvent(events, now)
@@ -149,7 +151,8 @@ function plan(st, c, now, events) {
     var before = start - len - c.lead
     if (p.in > before && p.in < end) {
       var earliest = p.kind === "body" ? c.body - c.merge - st.body : c.eyesMin - st.eyes
-      p.in = before >= earliest ? before : end + c.after
+      // A break that no longer fits before the meeting goes after it.
+      p.in = before >= 0 && before >= earliest ? before : end + c.after
     }
   }
   if (st.snoozeUntil > now) p.in = Math.max(p.in, (st.snoozeUntil - now) / 1000)

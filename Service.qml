@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Pipewire
+import Quickshell.Services.Mpris
 import "logic.js" as L
 import "I18n.js" as I18n
 
@@ -75,19 +76,23 @@ Item {
 
   // ------------------------------------------------------------ sensors
 
-  // Respecting inhibitors: video playback counts as activity and never as idle.
+  // Respecting inhibitors: idle in rawIdle but not here means something
+  // inhibits idle (video, Omarchy's idle toggle) — a reason to wait.
   IdleMonitor {
     id: idle
     timeout: root.settings.idleThreshold
     respectInhibitors: true
-    onIsIdleChanged: root.idleSince = isIdle ? Date.now() - timeout * 1000 : 0
   }
-  // Ignoring them: idle here but not above means something inhibits idle (video).
+  // Ignoring them: no input. Away counts as a break unless media is playing
+  // (watching is work for the eyes); a stuck inhibitor does not hide an absence.
   IdleMonitor {
     id: rawIdle
     timeout: root.settings.idleThreshold
     respectInhibitors: false
+    onIsIdleChanged: root.idleSince = isIdle ? Date.now() - timeout * 1000 : 0
   }
+  readonly property var players: Mpris.players ? Mpris.players.values : []
+  readonly property bool mediaPlaying: players.some(function(p) { return p && p.isPlaying })
   // A micro-pause is done after microSeconds without input.
   IdleMonitor {
     enabled: root.microShown
@@ -131,7 +136,7 @@ Item {
     if (root.breakSteps.length > 0) return
     // A gap longer than the idle threshold is sleep: an absence, not work (Review Focus 1).
     if (gap > root.c.idle) root.st = L.tick(root.st, 0, gap, root.c)
-    var idleSec = root.idleSince > 0 ? (now - root.idleSince) / 1000 : 0
+    var idleSec = root.idleSince > 0 && !root.mediaPlaying ? (now - root.idleSince) / 1000 : 0
     root.st = L.tick(root.st, Math.min(gap, 5), idleSec, root.c)
 
     var ev = root.settings.calendar ? root.events : null
