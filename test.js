@@ -32,6 +32,9 @@ assert.deepStrictEqual(L.readEntry(JSON.stringify(cfg), "predmaxim.breaks"), { i
 assert.deepStrictEqual(L.readEntry("{}", "predmaxim.breaks"), {})
 assert.strictEqual(L.readEntry("{oops", "predmaxim.breaks"), null)
 
+assert.strictEqual(L.normalize({}).enabled, true)
+assert.strictEqual(L.normalize({ enabled: false }).enabled, false)
+
 console.log("settings ok")
 
 // --- counters

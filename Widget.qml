@@ -1,15 +1,18 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 import "logic.js" as L
 import "I18n.js" as I18n
 
-// A clock; minutes to the next break are in the tooltip. A click opens the panel at
-// the icon: what comes next, "break now" and "pause", the everyday settings in
-// three tabs. Rare ones (break lengths, idle threshold…) stay in shell.json.
-// Settings are written by the service into this widget's entry.
+// The bar shows the icon through predmaxim.indicators (Indicator.qml); this
+// widget stays in the layout, hidden, for its settings and IPC
+// (`omarchy-shell predmaxim.breaks-panel toggle`). Its modal, in the middle of
+// the screen like todo's: on/off, what comes next, "break now" and "pause", the
+// everyday settings in three tabs. Rare ones (break lengths, idle threshold…)
+// stay in shell.json. Settings are written by the service into this entry.
 Panel {
   id: root
   moduleName: "predmaxim.breaks"
@@ -31,10 +34,10 @@ Panel {
   readonly property var s: service ? service.settings : L.normalize({})
   readonly property var d: service ? service.decision : ({ kind: "eyes", in: 0 })
   readonly property int minutes: Math.ceil(d.in / 60)
-  readonly property string icon: d.kind === "body" ? "" : ""
-  readonly property color fg: root.bar ? root.bar.foreground : Color.foreground
+  readonly property string icon: "󰥔"
+  readonly property color fg: Color.popups.text
   readonly property color dim: Qt.darker(fg, 1.4)
-  readonly property string font: root.bar ? root.bar.fontFamily : Style.font.family
+  readonly property string font: Style.font.family
 
   readonly property string nextText: !service ? ""
     : service.busyReason ? tr("Waiting: %1", tr(service.busyReason))
@@ -48,19 +51,9 @@ Panel {
     if (root.service) root.service.store(change)
   }
 
-  implicitWidth: button.implicitWidth
-  implicitHeight: button.implicitHeight
-
-  BarIconButton {
-    id: button
-    anchors.fill: parent
-    bar: root.bar
-    text: "󰥔"
-    // The clock glyph is drawn smaller than its neighbours at the default size.
-    fontSize: Style.font.subtitle
-    tooltipText: root.nextText
-    onPressed: function(b) { root.toggle() }
-  }
+  visible: false
+  implicitWidth: 0
+  implicitHeight: 0
 
   // One settings row: the label on the left, the control on the right.
   component Line: RowLayout {
@@ -95,21 +88,41 @@ Panel {
     onToggled: root.set(key, !root.s[key])
   }
 
-  KeyboardPanel {
-    id: panel
-    anchorItem: button
-    owner: root
-    bar: root.bar
-    open: root.opened
-    focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(380))
-    contentHeight: panel.fittedContentHeight(column.implicitHeight)
+  // A click on the dimmed screen or Esc closes it.
+  PanelWindow {
+    id: modal
+    screen: root.QsWindow.window ? root.QsWindow.window.screen : null
+    visible: root.opened
+    color: Color.menu.scrim
+    exclusionMode: ExclusionMode.Ignore
+    anchors { top: true; bottom: true; left: true; right: true }
+    WlrLayershell.namespace: "predmaxim-breaks-panel"
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+
+    MouseArea { anchors.fill: parent; onClicked: root.close() }
+
+    BorderSurface {
+      id: card
+      anchors.centerIn: parent
+      width: Math.min(Style.space(420), modal.width - Style.space(80))
+      height: Math.min(column.implicitHeight + card.contentTopInset + card.contentBottomInset, modal.height * 0.85)
+      color: Color.popups.background
+      borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
+      padding: Style.spacing.panelPadding
+      radius: Style.cornerRadius
+
+      MouseArea { anchors.fill: parent }   // clicks on the card stay on it
 
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
+      anchors.topMargin: card.contentTopInset
+      anchors.rightMargin: card.contentRightInset
+      anchors.bottomMargin: card.contentBottomInset
+      anchors.leftMargin: card.contentLeftInset
+      focus: true
       onCloseRequested: root.close()
-      onTabRequested: function(direction) { root.switchPanel(direction) }
 
       ColumnLayout {
         id: column
@@ -121,7 +134,7 @@ Panel {
         PanelHero {
           Layout.fillWidth: true
           title: root.tr("Breaks")
-          meta: root.nextText
+          meta: root.s.enabled ? root.nextText : root.tr("Breaks are off")
           foreground: root.fg
           fontFamily: root.font
           iconComponent: Text {
@@ -130,12 +143,11 @@ Panel {
             font.family: root.font
             font.pixelSize: Style.font.display
           }
-          trailingControl: Text {
-            text: root.minutes
-            color: root.fg
-            font.family: root.font
-            font.pixelSize: Style.font.displayLarge
-            font.bold: true
+          // On/off: off stops the counters and every break.
+          trailingControl: ToggleSwitch {
+            checked: root.s.enabled
+            foreground: root.fg
+            onToggled: root.set("enabled", !root.s.enabled)
           }
         }
 
@@ -215,4 +227,5 @@ Panel {
       }
     }
   }
-}
+    }
+  }

@@ -3,6 +3,7 @@
 // busy checks, exercise choice, history and the streak (node test.js).
 
 var DEFAULTS = {
+  enabled: true,
   eyesMin: 30, eyesMax: 50, eyesBreakSeconds: 90,
   bodyEvery: 60, bodySeconds: 420, merge: 15,
   microEnabled: true, microEvery: 20, microSeconds: 20,

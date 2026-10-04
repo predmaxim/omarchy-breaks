@@ -144,6 +144,11 @@ Item {
     var now = Date.now(), gap = (now - root.lastStep) / 1000
     root.lastStep = now
     if (root.breakSteps.length > 0) return
+    // Turned off: nothing counts and nothing comes.
+    if (!root.settings.enabled) {
+      if (root.microShown) root.finishMicro(false)
+      return
+    }
     // A gap longer than the idle threshold is sleep: an absence, not work (Review Focus 1).
     if (gap > root.c.idle) root.st = L.tick(root.st, 0, gap, root.c)
     var idleSec = root.idleSince > 0 && !root.mediaPlaying ? (now - root.idleSince) / 1000 : 0
@@ -239,6 +244,16 @@ Item {
   }
 
   // ------------------------------------------------------------ output
+
+  // For the icon among the bar's indicators (Indicator.qml): on or off,
+  // minutes to the next break and what it is. Written when it changes.
+  readonly property string indicatorState: JSON.stringify({
+    enabled: root.settings.enabled,
+    minutes: Math.ceil(root.decision.in / 60),
+    kind: root.decision.kind,
+    busy: root.busyReason
+  })
+  onIndicatorStateChanged: Quickshell.execDetached(["sh", "-c", 'printf "%s" "$1" > "$XDG_RUNTIME_DIR/predmaxim-breaks.json"', "sh", root.indicatorState])
 
   readonly property var cues: ({ start: "bell", step: "message", end: "complete" })
   function sound(cue) {

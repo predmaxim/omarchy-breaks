@@ -20,6 +20,7 @@ var TABLES = {
     "Waiting: %1": "Ждём: %1",
     "microphone": "микрофон", "camera": "камера", "video": "видео", "fullscreen": "полный экран",
     "app": "приложение", "meeting": "встреча",
+    "Breaks are off": "Перерывы выключены",
     "Schedule": "Расписание", "Mode": "Режим",
     "Eyes: no earlier than, min": "Глаза: не раньше, мин", "Eyes: no later than, min": "Глаза: не позже, мин",
     "Body: every, min": "Тело: каждые, мин",
