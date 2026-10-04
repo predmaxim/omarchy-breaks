@@ -355,7 +355,7 @@ function rowsFor(page, s) {
       { type: "switch", key: "debug", label: "Debug" })
     return rows
   }
-  var main = [{ type: "head" }, { type: "action", key: "breakNow", label: "Break now" }]
+  var main = [{ type: "head" }]
   if (s.strictness !== "hard" || s.debug) main.push({ type: "action", key: "pause", label: "Pause 1 h" })
   main.push({ type: "switch", key: "soundEnabled", label: "Sounds" },
     { type: "switch", key: "silence", label: "Silence during breaks" },

@@ -69,7 +69,7 @@ Panel {
   function showPage(p) {
     root.page = p
     root.cursor = 1
-    root.headCol = 0
+    root.headCol = p === "main" ? 1 : 0
   }
   function back() {
     if (root.page === "settings") root.showPage("main")
@@ -81,7 +81,7 @@ Panel {
     var row = root.rows[i]
     if (!row) return
     if (row.type === "head") {
-      root.headCol = Math.max(0, Math.min(root.page === "main" ? 1 : 0, root.headCol + dx))
+      root.headCol = Math.max(0, Math.min(root.page === "main" ? 2 : 0, root.headCol + dx))
       return
     }
     var c = L.adjust(row, root.s, dx)
@@ -92,11 +92,12 @@ Panel {
   function activate(i) {
     var row = root.rows[i]
     if (!row || !root.service) return
-    if (row.key === "breakNow") { root.close(); root.service.startBreak(root.d.kind) }
-    else if (row.key === "pause") { root.service.pause(60); root.close() }
+    if (row.key === "pause") { root.service.pause(60); root.close() }
     else if (row.type === "head") {
+      // Main page: Break now, Settings, the switch; settings page: only Back.
       if (root.page === "settings") root.showPage("main")
-      else if (root.headCol === 1) root.set("enabled", !root.s.enabled)
+      else if (root.headCol === 0) { root.close(); root.service.startBreak(root.d.kind) }
+      else if (root.headCol === 2) root.set("enabled", !root.s.enabled)
       else root.showPage("settings")
     }
     else if (row.type === "switch" || row.type === "choice") root.change(i, 1)
@@ -168,7 +169,7 @@ Panel {
               font.family: root.font
               font.pixelSize: Style.font.display
             }
-            // The stock header pattern (Wi-Fi, audio): the settings button, then
+            // The stock header pattern (Wi-Fi, audio): Break now, the settings button, then
             // the on/off ToggleSwitch at the right edge; on the settings page
             // only Back, at the edge; ←/→ on the header row picks one.
             trailingControl: Row {
@@ -186,6 +187,21 @@ Panel {
                 PanelToolTip { visible: statsHover.hovered; text: [root.tr("Today: %1 breaks", root.today.breaks), root.tr("Streak: %1 days", root.streak)].join(" · ") }
               }
               Button {
+                visible: root.page === "main"
+                anchors.verticalCenter: parent.verticalCenter
+                iconText: "󰾩"
+                iconSize: Style.font.subtitle * 1.5
+                horizontalPadding: Style.space(5)
+                verticalPadding: Style.space(2)
+                width: Math.max(implicitWidth, implicitHeight)   // square, like an icon button
+                height: width
+                tooltipText: root.tr("Break now")
+                foreground: root.fg
+                fontFamily: root.font
+                hasCursor: root.cursor === 0 && root.headCol === 0
+                onClicked: { root.cursor = 0; root.headCol = 0; root.activate(0) }
+              }
+              Button {
                 readonly property bool back: root.page === "settings"
                 anchors.verticalCenter: parent.verticalCenter
                 iconText: back ? "󰁍" : "󰒓"
@@ -197,16 +213,16 @@ Panel {
                 tooltipText: root.tr(back ? "Back" : "Settings")
                 foreground: root.fg
                 fontFamily: root.font
-                hasCursor: root.cursor === 0 && root.headCol === 0
-                onClicked: { root.cursor = 0; root.headCol = 0; root.activate(0) }
+                hasCursor: root.cursor === 0 && root.headCol === (back ? 0 : 1)
+                onClicked: { root.cursor = 0; root.headCol = back ? 0 : 1; root.activate(0) }
               }
               ToggleSwitch {
                 visible: root.page === "main"
                 anchors.verticalCenter: parent.verticalCenter
                 checked: root.s.enabled
-                hasCursor: root.cursor === 0 && root.headCol === 1
+                hasCursor: root.cursor === 0 && root.headCol === 2
                 foreground: root.fg
-                onToggled: { root.cursor = 0; root.headCol = 1; root.activate(0) }
+                onToggled: { root.cursor = 0; root.headCol = 2; root.activate(0) }
                 PanelToolTip { visible: parent.containsMouse; text: root.tr(root.s.enabled ? "Turn off" : "Turn on") }
               }
             }

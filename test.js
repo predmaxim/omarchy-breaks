@@ -190,8 +190,8 @@ console.log("decide ok")
 // --- panel rows (keyboard)
 const D = L.normalize({})
 const ids = (tab, st) => L.rowsFor(tab, st).map(r => r.key || r.type)
-assert.deepStrictEqual(ids("main", D), ["head", "breakNow", "soundEnabled", "silence", "calendar", "meetingNudges", "microEnabled", "strictness"])
-assert.deepStrictEqual(ids("main", L.normalize({ strictness: "soft" })).slice(0, 3), ["head", "breakNow", "pause"])
+assert.deepStrictEqual(ids("main", D), ["head", "soundEnabled", "silence", "calendar", "meetingNudges", "microEnabled", "strictness"])
+assert.deepStrictEqual(ids("main", L.normalize({ strictness: "soft" })).slice(0, 2), ["head", "pause"])
 assert.deepStrictEqual(ids("settings", D), ["head", "eyesMin", "eyesMax", "bodyEvery", "microEvery", "postponeCount", "soundVolume", "lockKeys", "showMinutes", "debug"])
 assert.deepStrictEqual(ids("settings", L.normalize({ microEnabled: false, soundEnabled: false })), ["head", "eyesMin", "eyesMax", "bodyEvery", "postponeCount", "lockKeys", "showMinutes", "debug"])
 const row = (tab, key) => L.rowsFor(tab, D).filter(r => r.key === key)[0]
@@ -202,6 +202,6 @@ assert.deepStrictEqual(L.adjust(row("main", "microEnabled"), D, 1), { key: "micr
 assert.deepStrictEqual(L.adjust(row("main", "strictness"), D, 1), { key: "strictness", value: "medium" })
 assert.deepStrictEqual(L.adjust(row("main", "strictness"), D, -1), { key: "strictness", value: "soft" })
 assert.deepStrictEqual(L.adjust(row("settings", "soundVolume"), D, 1), { key: "soundVolume", value: 60 })
-assert.strictEqual(L.adjust({ type: "action", key: "breakNow" }, D, 1), null)
+assert.strictEqual(L.adjust({ type: "action", key: "pause" }, D, 1), null)
 
 console.log("rows ok")
