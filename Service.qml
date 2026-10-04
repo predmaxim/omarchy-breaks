@@ -39,7 +39,7 @@ Item {
 
   // ------------------------------------------------------------ settings and files
 
-  // From Settings.qml: merged, checked, stored in the bar widget's entry.
+  // From the widget's panel: merged, checked, stored in the bar widget's entry.
   function store(changes) {
     var entry = {}
     for (var k in root.settings) entry[k] = root.settings[k]
@@ -248,7 +248,7 @@ Item {
   }
 
   function notify(text) {
-    Quickshell.execDetached(["notify-send", "-a", root.tr("Breaks"), root.tr("Breaks"), text])
+    Quickshell.execDetached(["omarchy-notification-send", "-u", "normal", root.tr("Breaks"), text])
   }
 
   Overlay { service: root }
@@ -263,10 +263,6 @@ Item {
       return JSON.stringify({ state: root.st, decision: root.decision, busy: root.busyReason,
         inBreak: root.breakSteps.length > 0, micro: root.microShown, idleSince: root.idleSince,
         events: root.events ? root.events.length : null, settings: root.settings })
-    }
-    function settings(): string {
-      if (root.shell) root.shell.summon(root.pluginId, "{}")
-      return "ok"
     }
     // Always works, whatever the strictness: the way out.
     function abort(): string {

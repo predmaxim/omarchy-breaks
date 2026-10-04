@@ -7,13 +7,11 @@
   "description": "Breaks for the eyes and the body by active time; never during calls, video or meetings",
   "kinds": [
     "service",
-    "bar-widget",
-    "panel"
+    "bar-widget"
   ],
   "entryPoints": {
     "service": "Service.qml",
-    "barWidget": "Widget.qml",
-    "panel": "Settings.qml"
+    "barWidget": "Widget.qml"
   },
   "barWidget": {
     "displayName": "Breaks",
