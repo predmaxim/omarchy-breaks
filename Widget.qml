@@ -228,7 +228,12 @@ Panel {
             }
           }
 
-          PanelSeparator { width: column.width; foreground: root.fg }
+          // The Bluetooth panel's gap: Style.space(14) above and below the line.
+          Item {
+            width: column.width
+            height: Style.space(14) * 2 + 1 - column.spacing * 2
+            PanelSeparator { anchors.verticalCenter: parent.verticalCenter; foreground: root.fg }
+          }
 
           Repeater {
             model: root.rows
