@@ -21,7 +21,6 @@ var TABLES = {
     "microphone": "микрофон", "camera": "камера", "video": "видео", "fullscreen": "полный экран",
     "app": "приложение", "meeting": "встреча",
     "Breaks are off": "Перерывы выключены",
-    "↑↓ choose · ←→ change · Enter toggle · Esc close": "↑↓ выбор · ←→ изменить · Enter переключить · Esc закрыть",
     "Settings": "Настройки", "Back": "Назад", "Turn on": "Включить", "On": "Вкл", "Silence during breaks": "Тишина во время перерыва", "Block hotkeys during breaks": "Блокировать горячие клавиши в перерыв", "Off": "Выкл", "Turn off": "Выключить",
     "Eyes: no earlier than, min": "Глаза: не раньше, мин", "Eyes: no later than, min": "Глаза: не позже, мин",
     "Body: every, min": "Тело: каждые, мин",

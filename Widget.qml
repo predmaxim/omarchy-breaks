@@ -173,6 +173,18 @@ Panel {
             // only Back, at the edge; ←/→ on the header row picks one.
             trailingControl: Row {
               spacing: Style.space(10)
+              // Today's breaks; the streak is in the tooltip.
+              Text {
+                visible: root.page === "main"
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.today.breaks
+                color: root.fg
+                font.family: root.font
+                font.pixelSize: Style.font.displayLarge
+                font.bold: true
+                HoverHandler { id: statsHover }
+                PanelToolTip { visible: statsHover.hovered; text: [root.tr("Today: %1 breaks", root.today.breaks), root.tr("Streak: %1 days", root.streak)].join(" · ") }
+              }
               Button {
                 readonly property bool back: root.page === "settings"
                 anchors.verticalCenter: parent.verticalCenter
@@ -198,16 +210,6 @@ Panel {
                 PanelToolTip { visible: parent.containsMouse; text: root.tr(root.s.enabled ? "Turn off" : "Turn on") }
               }
             }
-          }
-
-          Text {
-            text: [root.tr("Today: %1 breaks", root.today.breaks), root.tr("Streak: %1 days", root.streak)].join(" · ").toUpperCase()
-            color: root.dim
-            font.family: root.font
-            font.pixelSize: Style.font.caption
-            font.bold: true
-            font.letterSpacing: 1.2
-            bottomPadding: Style.space(8)
           }
 
           Repeater {
@@ -298,16 +300,6 @@ Panel {
                 }
               }
             }
-          }
-
-          Text {
-            width: column.width
-            topPadding: Style.space(8)
-            text: root.tr("↑↓ choose · ←→ change · Enter toggle · Esc close")
-            color: root.dim
-            font.family: root.font
-            font.pixelSize: Style.font.caption
-            horizontalAlignment: Text.AlignHCenter
           }
         }
       }
