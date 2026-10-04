@@ -78,6 +78,22 @@ Item {
     onLoaded: root.history = L.parseHistory(text())
   }
 
+  // Counters across shell restarts (L.restoreState). Saving starts only after
+  // the load, so a fresh start can't overwrite the file with zeros.
+  property bool restored: false
+  FileView {
+    id: stateFile
+    path: root.home + "/.local/state/predmaxim-breaks/state.json"
+    printErrors: false
+    atomicWrites: true
+    onLoaded: { root.st = L.restoreState(text(), Date.now(), root.c); root.restored = true }
+    onLoadFailed: root.restored = true
+  }
+  Timer {
+    interval: 10000; running: root.restored; repeat: true
+    onTriggered: stateFile.setText(JSON.stringify({ at: Date.now(), state: root.st }))
+  }
+
   function record(entry) {
     root.history = root.history.concat([entry])
     Quickshell.execDetached(["sh", "-c", 'mkdir -p "$(dirname "$1")" && printf "%s\\n" "$2" >> "$1"',

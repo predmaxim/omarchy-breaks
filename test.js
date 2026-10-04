@@ -4,7 +4,7 @@ const path = require("path")
 const assert = require("assert")
 const L = new Function(fs.readFileSync(path.join(__dirname, "logic.js"), "utf8").replace(".pragma library", "") +
   "; return { DEFAULTS, normalize, seconds, readEntry, newState, tick, credit, plan, decide, busyEvents, eventAt, nextEvent," +
-  " postpone, skip, nudgeDue, NUDGES, TIPS, micBusy, excluded, parseProbe, EXERCISES, pickBreak, reps, streak, dayKey, parseHistory, todayStats, LIMITS, rowsFor, adjust }")()
+  " postpone, skip, nudgeDue, NUDGES, TIPS, micBusy, excluded, parseProbe, EXERCISES, pickBreak, reps, streak, dayKey, parseHistory, todayStats, LIMITS, rowsFor, adjust, restoreState }")()
 
 // Settings: defaults fill gaps, junk falls back, numbers are clamped, eyesMax >= eyesMin.
 assert.deepStrictEqual(L.normalize({}), L.DEFAULTS)
@@ -205,3 +205,13 @@ assert.deepStrictEqual(L.adjust(row("settings", "soundVolume"), D, 1), { key: "s
 assert.strictEqual(L.adjust({ type: "action", key: "pause" }, D, 1), null)
 
 console.log("rows ok")
+
+// Counters survive a shell restart; the time it was down counts as an absence.
+{
+  const c = L.seconds(L.normalize({}))
+  const saved = JSON.stringify({ at: 1000000, state: { eyes: 600, body: 3000, micro: 100, snoozeUntil: 0, postponed: 1 } })
+  assert.deepStrictEqual(L.restoreState(saved, 1000000 + 5000, c), { eyes: 600, body: 3000, micro: 100, snoozeUntil: 0, postponed: 1 })
+  assert.strictEqual(L.restoreState(saved, 1000000 + (c.bodyBreak + 1) * 1000, c).body, 0)
+  assert.deepStrictEqual(L.restoreState("junk", 1, c), L.newState())
+  assert.deepStrictEqual(L.restoreState("", 1, c), L.newState())
+}

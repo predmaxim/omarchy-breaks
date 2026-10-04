@@ -380,3 +380,15 @@ function adjust(row, s, dx) {
   }
   return null
 }
+
+// Counters saved by the service ({ at, state }), so a shell restart doesn't
+// start the work clock over. The time between save and now is an absence.
+function restoreState(text, now, c) {
+  try {
+    var saved = JSON.parse(text), s = saved.state, n = newState()
+    for (var k in n) if (typeof s[k] === "number" && isFinite(s[k])) n[k] = s[k]
+    return tick(n, 0, Math.max(0, (now - saved.at) / 1000), c)
+  } catch (e) {
+    return newState()
+  }
+}
