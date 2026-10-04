@@ -174,7 +174,7 @@ Panel {
               spacing: Style.space(6)
               Repeater {
                 model: root.page === "main" ? [
-                  { icon: "󰐥", tip: root.s.enabled ? "Turn off" : "Turn on" },
+                  { icon: root.s.enabled ? "󰔡" : "󰨙", tip: root.s.enabled ? "Turn off" : "Turn on" },
                   { icon: "󰒓", tip: "Settings" }
                 ] : [{ icon: "󰁍", tip: "Back" }]
                 Button {
