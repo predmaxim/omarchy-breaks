@@ -4,7 +4,7 @@ const path = require("path")
 const assert = require("assert")
 const L = new Function(fs.readFileSync(path.join(__dirname, "logic.js"), "utf8").replace(".pragma library", "") +
   "; return { DEFAULTS, normalize, seconds, readEntry, newState, tick, credit, plan, decide, busyEvents, eventAt, nextEvent," +
-  " postpone, skip, nudgeDue, NUDGES, TIPS, micBusy, excluded, parseProbe, EXERCISES, pickBreak, reps, streak, dayKey, parseHistory, todayStats }")()
+  " postpone, skip, nudgeDue, NUDGES, TIPS, micBusy, excluded, parseProbe, EXERCISES, pickBreak, reps, streak, dayKey, parseHistory, todayStats, LIMITS, rowsFor, adjust }")()
 
 // Settings: defaults fill gaps, junk falls back, numbers are clamped, eyesMax >= eyesMin.
 assert.deepStrictEqual(L.normalize({}), L.DEFAULTS)
@@ -186,3 +186,22 @@ assert.deepStrictEqual(L.todayStats(hist, day(4, 18)), { breaks: 2, reps: { squa
 assert.strictEqual(L.dayKey(day(4)), "2026-10-04")
 
 console.log("decide ok")
+
+// --- panel rows (keyboard)
+const D = L.normalize({})
+const ids = (tab, st) => L.rowsFor(tab, st).map(r => r.key || r.type)
+assert.deepStrictEqual(ids("schedule", D), ["enabled", "breakNow", "tabs", "eyesMin", "eyesMax", "bodyEvery", "microEnabled", "microEvery"])
+assert.deepStrictEqual(ids("schedule", L.normalize({ microEnabled: false })).slice(-1), ["microEnabled"])
+assert.deepStrictEqual(ids("mode", L.normalize({ strictness: "soft" })), ["enabled", "breakNow", "pause", "tabs", "strictness", "postponeCount", "calendar", "meetingNudges", "debug"])
+assert.deepStrictEqual(ids("sound", D), ["enabled", "breakNow", "tabs", "soundEnabled", "soundVolume"])
+const row = (tab, key) => L.rowsFor(tab, D).filter(r => r.key === key)[0]
+assert.deepStrictEqual(L.adjust(row("schedule", "eyesMin"), D, 1), { key: "eyesMin", value: 35 })
+assert.deepStrictEqual(L.adjust(row("schedule", "eyesMin"), D, -1), { key: "eyesMin", value: 25 })
+assert.deepStrictEqual(L.adjust(row("schedule", "eyesMin"), L.normalize({ eyesMin: 5 }), -1), null)   // at the limit
+assert.deepStrictEqual(L.adjust(row("schedule", "microEnabled"), D, 1), { key: "microEnabled", value: false })
+assert.deepStrictEqual(L.adjust(row("mode", "strictness"), D, 1), { key: "strictness", value: "medium" })
+assert.deepStrictEqual(L.adjust(row("mode", "strictness"), D, -1), { key: "strictness", value: "soft" })
+assert.deepStrictEqual(L.adjust(row("sound", "soundVolume"), D, 1), { key: "soundVolume", value: 60 })
+assert.strictEqual(L.adjust({ type: "action", key: "breakNow" }, D, 1), null)
+
+console.log("rows ok")

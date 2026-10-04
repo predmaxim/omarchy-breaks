@@ -332,3 +332,49 @@ function todayStats(history, now) {
   })
   return out
 }
+
+// ------------------------------------------------------------ panel rows
+
+// The modal's rows, walked with ↑/↓: on/off and the actions on top, then the
+// tab row (←/→ switches tabs), then the tab's settings. Labels are English, for tr().
+function rowsFor(tab, s) {
+  var rows = [
+    { type: "switch", key: "enabled", label: "Breaks" },
+    { type: "action", key: "breakNow", label: "Break now" }
+  ]
+  if (s.strictness !== "hard" || s.debug) rows.push({ type: "action", key: "pause", label: "Pause 1 h" })
+  rows.push({ type: "tabs" })
+  if (tab === "schedule") {
+    rows.push({ type: "num", key: "eyesMin", label: "Eyes: no earlier than, min", step: 5 },
+      { type: "num", key: "eyesMax", label: "Eyes: no later than, min", step: 5 },
+      { type: "num", key: "bodyEvery", label: "Body: every, min", step: 5 },
+      { type: "switch", key: "microEnabled", label: "Micro-pauses 20-20-20" })
+    if (s.microEnabled) rows.push({ type: "num", key: "microEvery", label: "Micro-pause every, min", step: 5 })
+  } else if (tab === "mode") {
+    rows.push({ type: "choice", key: "strictness", label: "Strictness", options: STRICTNESS },
+      { type: "num", key: "postponeCount", label: "Postpones per break", step: 1 },
+      { type: "switch", key: "calendar", label: "Respect the calendar" },
+      { type: "switch", key: "meetingNudges", label: "Movement tips during meetings" },
+      { type: "switch", key: "debug", label: "Debug" })
+  } else {
+    rows.push({ type: "switch", key: "soundEnabled", label: "Sounds" })
+    if (s.soundEnabled) rows.push({ type: "num", key: "soundVolume", label: "Volume, %", step: 10 })
+  }
+  return rows
+}
+
+// ←/→ (dx = -1/1) on a row: the new value, or null when nothing changes.
+function adjust(row, s, dx) {
+  if (!row || !row.key) return null
+  var v = s[row.key]
+  if (row.type === "switch") return { key: row.key, value: !v }
+  if (row.type === "choice") {
+    var o = row.options, i = (o.indexOf(v) + dx + o.length) % o.length
+    return { key: row.key, value: o[i] }
+  }
+  if (row.type === "num") {
+    var n = Math.min(LIMITS[row.key][1], Math.max(LIMITS[row.key][0], v + dx * row.step))
+    return n === v ? null : { key: row.key, value: n }
+  }
+  return null
+}

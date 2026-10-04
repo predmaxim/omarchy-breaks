@@ -10,9 +10,10 @@ import "I18n.js" as I18n
 // The bar shows the icon through predmaxim.indicators (Indicator.qml); this
 // widget stays in the layout, hidden, for its settings and IPC
 // (`omarchy-shell predmaxim.breaks-panel toggle`). Its modal, in the middle of
-// the screen like todo's: on/off, what comes next, "break now" and "pause", the
-// everyday settings in three tabs. Rare ones (break lengths, idle threshold…)
-// stay in shell.json. Settings are written by the service into this entry.
+// the screen like todo's, is a list of rows (logic.js rowsFor): ↑/↓ walk them,
+// ←/→ change the value or the tab, Enter toggles or presses, Esc closes.
+// Rare settings (break lengths, idle threshold…) stay in shell.json. Settings
+// are written by the service into this entry.
 Panel {
   id: root
   moduleName: "predmaxim.breaks"
@@ -21,6 +22,8 @@ Panel {
   readonly property var tr: I18n.translator(I18n.textLanguage(Quickshell.env))
   property var service: null
   property string tab: "schedule"
+  readonly property var tabs: ["schedule", "mode", "sound"]
+  property int cursor: 0
 
   // The service is a separate plugin instance; look it up until it is there.
   Timer {
@@ -34,16 +37,20 @@ Panel {
   readonly property var s: service ? service.settings : L.normalize({})
   readonly property var d: service ? service.decision : ({ kind: "eyes", in: 0 })
   readonly property int minutes: Math.ceil(d.in / 60)
-  readonly property string icon: "󰥔"
+  readonly property var rows: L.rowsFor(tab, s)
   readonly property color fg: Color.popups.text
   readonly property color dim: Qt.darker(fg, 1.4)
   readonly property string font: Style.font.family
 
   readonly property string nextText: !service ? ""
+    : !s.enabled ? tr("Breaks are off")
     : service.busyReason ? tr("Waiting: %1", tr(service.busyReason))
     : tr(d.kind === "body" ? "Next: body in %1 min" : "Next: eyes in %1 min", minutes)
   readonly property var today: service ? L.todayStats(service.history, Date.now()) : ({ breaks: 0, reps: {} })
   readonly property int streak: service ? L.streak(service.history, Date.now()) : 0
+
+  onOpenedChanged: if (opened) { root.cursor = 0; Qt.callLater(function() { keyCatcher.forceActiveFocus() }) }
+  onRowsChanged: if (root.cursor >= root.rows.length) root.cursor = root.rows.length - 1
 
   function set(key, value) {
     var change = {}
@@ -51,42 +58,36 @@ Panel {
     if (root.service) root.service.store(change)
   }
 
+  function move(dy) {
+    root.cursor = Math.max(0, Math.min(root.rows.length - 1, root.cursor + dy))
+    pointerGate.reset()
+  }
+
+  // ←/→: the tab on the tab row, the value elsewhere.
+  function change(i, dx) {
+    var row = root.rows[i]
+    if (!row) return
+    if (row.type === "tabs") {
+      root.tab = root.tabs[(root.tabs.indexOf(root.tab) + dx + root.tabs.length) % root.tabs.length]
+      return
+    }
+    var c = L.adjust(row, root.s, dx)
+    if (c) root.set(c.key, c.value)
+  }
+
+  // Enter or a click: toggle, press, or step a choice forward.
+  function activate(i) {
+    var row = root.rows[i]
+    if (!row || !root.service) return
+    if (row.key === "breakNow") { root.close(); root.service.startBreak(root.d.kind) }
+    else if (row.key === "pause") { root.service.pause(60); root.close() }
+    else if (row.type === "switch" || row.type === "choice") root.change(i, 1)
+    else if (row.type === "tabs") root.change(i, 1)
+  }
+
   visible: false
   implicitWidth: 0
   implicitHeight: 0
-
-  // One settings row: the label on the left, the control on the right.
-  component Line: RowLayout {
-    id: line
-    property string label
-    default property alias control: slot.data
-    Layout.fillWidth: true
-    Text {
-      Layout.fillWidth: true
-      text: line.label
-      color: root.fg
-      font.family: root.font
-      font.pixelSize: Style.font.body
-      elide: Text.ElideRight
-    }
-    Item { id: slot; implicitWidth: childrenRect.width; implicitHeight: childrenRect.height }
-  }
-
-  component Num: NumberField {
-    property string key
-    value: root.s[key]
-    from: L.LIMITS[key][0]
-    to: L.LIMITS[key][1]
-    foreground: root.fg
-    onModified: function(v) { root.set(key, v) }
-  }
-
-  component Switch: ToggleSwitch {
-    property string key
-    checked: root.s[key]
-    foreground: root.fg
-    onToggled: root.set(key, !root.s[key])
-  }
 
   // A click on the dimmed screen or Esc closes it.
   PanelWindow {
@@ -105,7 +106,7 @@ Panel {
     BorderSurface {
       id: card
       anchors.centerIn: parent
-      width: Math.min(Style.space(420), modal.width - Style.space(80))
+      width: Math.min(Style.space(440), modal.width - Style.space(80))
       height: Math.min(column.implicitHeight + card.contentTopInset + card.contentBottomInset, modal.height * 0.85)
       color: Color.popups.background
       borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.space(2)))
@@ -114,118 +115,175 @@ Panel {
 
       MouseArea { anchors.fill: parent }   // clicks on the card stay on it
 
-    PanelKeyCatcher {
-      id: keyCatcher
-      anchors.fill: parent
-      anchors.topMargin: card.contentTopInset
-      anchors.rightMargin: card.contentRightInset
-      anchors.bottomMargin: card.contentBottomInset
-      anchors.leftMargin: card.contentLeftInset
-      focus: true
-      onCloseRequested: root.close()
+      PanelKeyCatcher {
+        id: keyCatcher
+        anchors.fill: parent
+        anchors.topMargin: card.contentTopInset
+        anchors.rightMargin: card.contentRightInset
+        anchors.bottomMargin: card.contentBottomInset
+        anchors.leftMargin: card.contentLeftInset
+        focus: true
+        onMoveRequested: function(dx, dy) {
+          if (dy) root.move(dy)
+          else if (dx) root.change(root.cursor, dx)
+        }
+        onActivateRequested: root.activate(root.cursor)
+        onCloseRequested: root.close()
 
-      ColumnLayout {
-        id: column
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        spacing: Style.space(12)
+        PointerMoveGate { id: pointerGate; referenceItem: column }
 
-        PanelHero {
-          Layout.fillWidth: true
-          title: root.tr("Breaks")
-          meta: root.s.enabled ? root.nextText : root.tr("Breaks are off")
-          foreground: root.fg
-          fontFamily: root.font
-          iconComponent: Text {
-            text: root.icon
-            color: root.fg
+        Column {
+          id: column
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.top: parent.top
+          spacing: Style.spacing.xs
+
+          PanelHero {
+            width: column.width
+            title: root.tr("Breaks")
+            meta: root.nextText
+            foreground: root.fg
+            fontFamily: root.font
+            iconComponent: Text {
+              text: "󰥔"
+              color: root.fg
+              font.family: root.font
+              font.pixelSize: Style.font.display
+            }
+            trailingControl: Text {
+              text: root.s.enabled ? root.minutes : ""
+              color: root.fg
+              font.family: root.font
+              font.pixelSize: Style.font.displayLarge
+              font.bold: true
+            }
+          }
+
+          Text {
+            text: [root.tr("Today: %1 breaks", root.today.breaks), root.tr("Streak: %1 days", root.streak)].join(" · ").toUpperCase()
+            color: root.dim
             font.family: root.font
-            font.pixelSize: Style.font.display
+            font.pixelSize: Style.font.caption
+            font.bold: true
+            font.letterSpacing: 1.2
+            bottomPadding: Style.space(8)
           }
-          // On/off: off stops the counters and every break.
-          trailingControl: ToggleSwitch {
-            checked: root.s.enabled
-            foreground: root.fg
-            onToggled: root.set("enabled", !root.s.enabled)
+
+          Repeater {
+            model: root.rows
+
+            CursorSurface {
+              id: row
+              required property var modelData
+              required property int index
+              width: column.width
+              implicitHeight: Math.max(Style.space(42), control.implicitHeight + Style.spacing.xs * 2)
+              foreground: root.fg
+              hasCursor: root.cursor === index
+
+              MouseArea {
+                id: area
+                anchors.fill: parent
+                hoverEnabled: true
+                onPositionChanged: function(mouse) { if (pointerGate.moved(area, mouse)) root.cursor = row.index }
+                onClicked: { root.cursor = row.index; root.activate(row.index) }
+              }
+
+              Text {
+                visible: row.modelData.type !== "tabs"
+                anchors.left: parent.left
+                anchors.leftMargin: Style.spacing.rowPaddingX
+                anchors.right: control.left
+                anchors.rightMargin: Style.space(8)
+                anchors.verticalCenter: parent.verticalCenter
+                text: row.modelData.label ? root.tr(row.modelData.label) : ""
+                color: root.fg
+                font.family: root.font
+                font.pixelSize: Style.font.body
+                font.bold: row.modelData.type === "action"
+                elide: Text.ElideRight
+              }
+
+              // The value on the right; ←/→ change it, so it is only a picture
+              // for the keyboard, while the mouse can still use it directly.
+              Loader {
+                id: control
+                anchors.right: parent.right
+                anchors.rightMargin: Style.spacing.rowPaddingX
+                anchors.left: row.modelData.type === "tabs" ? parent.left : undefined
+                anchors.leftMargin: Style.spacing.rowPaddingX
+                anchors.verticalCenter: parent.verticalCenter
+                sourceComponent: ({ tabs: tabsControl, num: numControl, switch: switchControl, choice: choiceControl })[row.modelData.type] || null
+
+                Component {
+                  id: tabsControl
+                  ButtonGroup {
+                    options: [{ value: "schedule", label: root.tr("Schedule") }, { value: "mode", label: root.tr("Mode") }, { value: "sound", label: root.tr("Sound") }]
+                    value: root.tab
+                    focusable: false
+                    foreground: root.fg
+                    fontFamily: root.font
+                    onChanged: function(v) { root.tab = v }
+                  }
+                }
+                Component {
+                  id: choiceControl
+                  ButtonGroup {
+                    options: [{ value: "hard", label: root.tr("Hard") }, { value: "medium", label: root.tr("Medium") }, { value: "soft", label: root.tr("Soft") }]
+                    value: root.s.strictness
+                    focusable: false
+                    foreground: root.fg
+                    fontFamily: root.font
+                    onChanged: function(v) { root.set("strictness", v) }
+                  }
+                }
+                Component {
+                  id: numControl
+                  Row {
+                    spacing: Style.space(10)
+                    Repeater {
+                      model: [-1, 0, 1]
+                      Text {
+                        required property int modelData
+                        text: modelData < 0 ? "‹" : modelData > 0 ? "›" : root.s[row.modelData.key]
+                        color: modelData === 0 ? root.fg : root.dim
+                        font.family: root.font
+                        font.pixelSize: Style.font.body
+                        font.bold: true
+                        MouseArea {
+                          anchors.fill: parent
+                          anchors.margins: -Style.space(6)
+                          enabled: parent.modelData !== 0
+                          onClicked: { root.cursor = row.index; root.change(row.index, parent.modelData) }
+                        }
+                      }
+                    }
+                  }
+                }
+                Component {
+                  id: switchControl
+                  ToggleSwitch {
+                    checked: root.s[row.modelData.key]
+                    foreground: root.fg
+                    onToggled: root.change(row.index, 1)
+                  }
+                }
+              }
+            }
           }
-        }
 
-        Text {
-          text: [root.tr("Today: %1 breaks", root.today.breaks), root.tr("Streak: %1 days", root.streak)].join(" · ").toUpperCase()
-          color: root.dim
-          font.family: root.font
-          font.pixelSize: Style.font.caption
-          font.bold: true
-          font.letterSpacing: 1.2
-        }
-
-        RowLayout {
-          spacing: Style.space(8)
-          Button {
-            text: root.tr("Break now")
-            foreground: root.fg
-            fontFamily: root.font
-            bordered: true
-            onClicked: { root.close(); if (root.service) root.service.startBreak(root.d.kind) }
+          Text {
+            width: column.width
+            topPadding: Style.space(8)
+            text: root.tr("↑↓ choose · ←→ change · Enter toggle · Esc close")
+            color: root.dim
+            font.family: root.font
+            font.pixelSize: Style.font.caption
+            horizontalAlignment: Text.AlignHCenter
           }
-          Button {
-            visible: root.s.strictness !== "hard" || root.s.debug
-            text: root.tr("Pause 1 h")
-            foreground: root.fg
-            fontFamily: root.font
-            bordered: true
-            onClicked: if (root.service) root.service.pause(60)
-          }
-        }
-
-        PanelSeparator { Layout.fillWidth: true; foreground: root.fg }
-
-        ButtonGroup {
-          options: [{ value: "schedule", label: root.tr("Schedule") }, { value: "mode", label: root.tr("Mode") }, { value: "sound", label: root.tr("Sound") }]
-          value: root.tab
-          foreground: root.fg
-          fontFamily: root.font
-          onChanged: function(v) { root.tab = v }
-        }
-
-        ColumnLayout {
-          visible: root.tab === "schedule"
-          Layout.fillWidth: true
-          spacing: Style.space(6)
-          Line { label: root.tr("Eyes: no earlier than, min"); Num { key: "eyesMin" } }
-          Line { label: root.tr("Eyes: no later than, min"); Num { key: "eyesMax" } }
-          Line { label: root.tr("Body: every, min"); Num { key: "bodyEvery" } }
-          Line { label: root.tr("Micro-pauses 20-20-20"); Switch { key: "microEnabled" } }
-          Line { label: root.tr("Micro-pause every, min"); visible: root.s.microEnabled; Num { key: "microEvery" } }
-        }
-
-        ColumnLayout {
-          visible: root.tab === "mode"
-          Layout.fillWidth: true
-          spacing: Style.space(6)
-          ButtonGroup {
-            options: [{ value: "hard", label: root.tr("Hard") }, { value: "medium", label: root.tr("Medium") }, { value: "soft", label: root.tr("Soft") }]
-            value: root.s.strictness
-            foreground: root.fg
-            fontFamily: root.font
-            onChanged: function(v) { root.set("strictness", v) }
-          }
-          Line { label: root.tr("Postpones per break"); Num { key: "postponeCount" } }
-          Line { label: root.tr("Respect the calendar"); Switch { key: "calendar" } }
-          Line { label: root.tr("Movement tips during meetings"); Switch { key: "meetingNudges" } }
-          Line { label: root.tr("Debug"); Switch { key: "debug" } }
-        }
-
-        ColumnLayout {
-          visible: root.tab === "sound"
-          Layout.fillWidth: true
-          spacing: Style.space(6)
-          Line { label: root.tr("Sounds"); Switch { key: "soundEnabled" } }
-          Line { label: root.tr("Volume, %"); visible: root.s.soundEnabled; Num { key: "soundVolume" } }
         }
       }
     }
   }
-    }
-  }
+}
