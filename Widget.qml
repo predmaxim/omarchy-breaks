@@ -177,7 +177,9 @@ Panel {
                 readonly property bool back: root.page === "settings"
                 anchors.verticalCenter: parent.verticalCenter
                 iconText: back ? "󰁍" : "󰒓"
-                iconSize: Style.font.title
+                iconSize: Style.font.subtitle * 1.5
+                horizontalPadding: Style.space(5)
+                verticalPadding: Style.space(2)
                 tooltipText: root.tr(back ? "Back" : "Settings")
                 foreground: root.fg
                 fontFamily: root.font
