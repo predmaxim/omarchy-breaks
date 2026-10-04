@@ -19,6 +19,18 @@ BarIndicator {
   readonly property string label: "󰥔 " + info.minutes
 
   active: info.enabled
+  // The minutes make it wider than an icon: the slot and the glyph canvas grow
+  // by the extra width, so it does not run over its neighbours.
+  readonly property real extra: Math.max(0, Math.ceil(metrics.tightBoundingRect.width) - Style.bar.iconCanvas)
+  opticalSize: Style.bar.iconCanvas + extra
+  fixedWidth: vertical ? -1 : Style.bar.statusSlot + extra
+
+  TextMetrics {
+    id: metrics
+    font.family: root.fontFamily
+    font.pixelSize: root.fontSize
+    text: root.text
+  }
   activeText: label
   inactiveText: "󰥔"
   activeTooltipText: info.busy ? root.tr("Waiting: %1", root.tr(info.busy))
