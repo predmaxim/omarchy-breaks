@@ -25,7 +25,7 @@ Panel {
   property var service: null
   property string page: "main"
   property int cursor: 0
-  // Header button under the cursor: 0 on/off, 1 settings.
+  // Header button under the cursor: main 0 on/off, 1 settings; settings 0 Back.
   property int headCol: 0
 
   // The service is a separate plugin instance; look it up until it is there.
@@ -68,7 +68,8 @@ Panel {
 
   function showPage(p) {
     root.page = p
-    root.cursor = p === "main" ? 1 : 0
+    root.cursor = 1
+    root.headCol = 0
   }
   function back() {
     if (root.page === "settings") root.showPage("main")
@@ -80,7 +81,7 @@ Panel {
     var row = root.rows[i]
     if (!row) return
     if (row.type === "head") {
-      root.headCol = Math.max(0, Math.min(1, root.headCol + dx))
+      root.headCol = Math.max(0, Math.min(root.page === "main" ? 1 : 0, root.headCol + dx))
       return
     }
     var c = L.adjust(row, root.s, dx)
@@ -93,9 +94,9 @@ Panel {
     if (!row || !root.service) return
     if (row.key === "breakNow") { root.close(); root.service.startBreak(root.d.kind) }
     else if (row.key === "pause") { root.service.pause(60); root.close() }
-    else if (row.key === "back") root.showPage("main")
     else if (row.type === "head") {
-      if (root.headCol === 0) root.set("enabled", !root.s.enabled)
+      if (root.page === "settings") root.showPage("main")
+      else if (root.headCol === 0) root.set("enabled", !root.s.enabled)
       else root.showPage("settings")
     }
     else if (row.type === "switch" || row.type === "choice") root.change(i, 1)
@@ -167,15 +168,15 @@ Panel {
               font.family: root.font
               font.pixelSize: Style.font.display
             }
-            // On/off and settings; ←/→ on the header row picks one.
+            // On/off and settings, or Back on the settings page; ←/→ on the
+            // header row picks one.
             trailingControl: Row {
-              visible: root.page === "main"
               spacing: Style.space(6)
               Repeater {
-                model: [
+                model: root.page === "main" ? [
                   { icon: "󰐥", tip: root.s.enabled ? "Turn off" : "Turn on" },
                   { icon: "󰒓", tip: "Settings" }
-                ]
+                ] : [{ icon: "󰁍", tip: "Back" }]
                 Button {
                   required property var modelData
                   required property int index
@@ -185,7 +186,7 @@ Panel {
                   foreground: root.fg
                   fontFamily: root.font
                   bordered: true
-                  active: index === 0 && root.s.enabled
+                  active: root.page === "main" && index === 0 && root.s.enabled
                   hasCursor: root.cursor === 0 && root.headCol === index
                   onClicked: { root.cursor = 0; root.headCol = index; root.activate(0) }
                 }

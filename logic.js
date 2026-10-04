@@ -336,12 +336,13 @@ function todayStats(history, now) {
 
 // ------------------------------------------------------------ panel rows
 
-// The modal's rows, walked with ↑/↓. page "main": the header (on/off and
-// settings buttons), the actions and the everyday switches; page "settings":
-// the rest and Back. Labels are English, for tr().
+// The modal's rows, walked with ↑/↓, the header first (main: on/off and
+// settings buttons; settings: Back). Page "main": the actions and the
+// everyday switches; page "settings": the rest. Labels are English, for tr().
 function rowsFor(page, s) {
   if (page === "settings") {
     var rows = [
+      { type: "head" },
       { type: "num", key: "eyesMin", label: "Eyes: no earlier than, min", step: 5 },
       { type: "num", key: "eyesMax", label: "Eyes: no later than, min", step: 5 },
       { type: "num", key: "bodyEvery", label: "Body: every, min", step: 5 }
@@ -350,8 +351,7 @@ function rowsFor(page, s) {
     rows.push({ type: "num", key: "postponeCount", label: "Postpones per break", step: 1 })
     if (s.soundEnabled) rows.push({ type: "num", key: "soundVolume", label: "Volume, %", step: 10 })
     rows.push({ type: "switch", key: "showMinutes", label: "Minutes in the bar" },
-      { type: "switch", key: "debug", label: "Debug" },
-      { type: "action", key: "back", label: "Back" })
+      { type: "switch", key: "debug", label: "Debug" })
     return rows
   }
   var main = [{ type: "head" }, { type: "action", key: "breakNow", label: "Break now" }]
