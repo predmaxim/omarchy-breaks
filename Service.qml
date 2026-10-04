@@ -192,6 +192,7 @@ Item {
     root.breakKind = kind
     root.breakSteps = L.pickBreak(kind, root.c, root.lastIds(), L.streak(root.history, Date.now()), Math.random)
     root.sound("start")
+    root.quietOn()
   }
 
   // reason: done | skip | abort. The need counts as met either way, so an
@@ -204,6 +205,7 @@ Item {
     root.st = L.credit(root.st, root.breakKind)
     root.breakSteps = []
     root.breakKind = ""
+    root.quietOff()
   }
 
   function postponeBreak() {
@@ -212,6 +214,7 @@ Item {
     root.st = n
     root.breakSteps = []
     root.breakKind = ""
+    root.quietOff()
     return true
   }
 
@@ -259,9 +262,31 @@ Item {
   readonly property var cues: ({ start: "bell", micro: "window-attention", step: "message", end: "complete" })
   function sound(cue) {
     if (!root.settings.soundEnabled) return
-    Quickshell.execDetached(["pw-play", "--volume=" + (root.settings.soundVolume / 100),
+    Quickshell.execDetached([root.quietScript, "cue", "pw-play", "--volume=" + (root.settings.soundVolume / 100),
       "/usr/share/sounds/freedesktop/stereo/" + root.cues[cue] + ".oga"])
   }
+
+  // ------------------------------------------------------------ break mode
+
+  // During a break: no hotkeys but the way out (lockKeys) and silence — the
+  // output muted, playing media paused (silence). quiet.sh keeps the state in
+  // a file, so it all comes back after the break, an abort, or a crash or
+  // reboot mid-break (quietOff at the start).
+  readonly property string quietScript: Qt.resolvedUrl("quiet.sh").toString().replace("file://", "")
+  property var pausedPlayers: []
+  function quietOn() {
+    if (root.settings.silence) {
+      root.pausedPlayers = Mpris.players.values.filter(function(p) { return p.isPlaying && p.canPause })
+      root.pausedPlayers.forEach(function(p) { p.pause() })
+    }
+    Quickshell.execDetached([root.quietScript, "on", root.settings.lockKeys ? "1" : "0", root.settings.silence ? "1" : "0"])
+  }
+  function quietOff() {
+    Quickshell.execDetached([root.quietScript, "off"])
+    root.pausedPlayers.forEach(function(p) { if (p.canPlay) p.play() })
+    root.pausedPlayers = []
+  }
+  Component.onCompleted: quietOff()
 
   function notify(text) {
     Quickshell.execDetached(["omarchy-notification-send", "-u", "normal", root.tr("Breaks"), text])

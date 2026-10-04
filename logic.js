@@ -11,7 +11,7 @@ var DEFAULTS = {
   strictness: "hard", postponeCount: 2, postponeMinutes: 5,
   soundEnabled: true, soundVolume: 50,
   calendar: true, meetingNudges: false, meetingNudgeEvery: 25,
-  showMinutes: false,
+  showMinutes: false, silence: true, lockKeys: true,
   exclude: "zoom,teams",
   debug: false
 }
@@ -350,13 +350,15 @@ function rowsFor(page, s) {
     if (s.microEnabled) rows.push({ type: "num", key: "microEvery", label: "Micro-pause every, min", step: 5 })
     rows.push({ type: "num", key: "postponeCount", label: "Postpones per break", step: 1 })
     if (s.soundEnabled) rows.push({ type: "num", key: "soundVolume", label: "Volume, %", step: 10 })
-    rows.push({ type: "switch", key: "showMinutes", label: "Minutes in the bar" },
+    rows.push({ type: "switch", key: "lockKeys", label: "Block hotkeys during breaks" },
+      { type: "switch", key: "showMinutes", label: "Minutes in the bar" },
       { type: "switch", key: "debug", label: "Debug" })
     return rows
   }
   var main = [{ type: "head" }, { type: "action", key: "breakNow", label: "Break now" }]
   if (s.strictness !== "hard" || s.debug) main.push({ type: "action", key: "pause", label: "Pause 1 h" })
   main.push({ type: "switch", key: "soundEnabled", label: "Sounds" },
+    { type: "switch", key: "silence", label: "Silence during breaks" },
     { type: "switch", key: "calendar", label: "Respect the calendar" },
     { type: "switch", key: "meetingNudges", label: "Movement tips during meetings" },
     { type: "switch", key: "microEnabled", label: "Micro-pauses 20-20-20" },
