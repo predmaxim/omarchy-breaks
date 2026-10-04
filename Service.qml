@@ -39,6 +39,16 @@ Item {
 
   // ------------------------------------------------------------ settings and files
 
+  // From Settings.qml: merged, checked, stored in the bar widget's entry.
+  function store(changes) {
+    var entry = {}
+    for (var k in root.settings) entry[k] = root.settings[k]
+    for (var c in changes) entry[c] = changes[c]
+    root.settings = L.normalize(entry)
+    if (root.shell && typeof root.shell.updateEntryInline === "function")
+      root.shell.updateEntryInline(root.pluginId, root.settings)
+  }
+
   FileView {
     path: root.home + "/.config/omarchy/shell.json"
     watchChanges: true
@@ -253,6 +263,10 @@ Item {
       return JSON.stringify({ state: root.st, decision: root.decision, busy: root.busyReason,
         inBreak: root.breakSteps.length > 0, micro: root.microShown, idleSince: root.idleSince,
         events: root.events ? root.events.length : null, settings: root.settings })
+    }
+    function settings(): string {
+      if (root.shell) root.shell.summon(root.pluginId, "{}")
+      return "ok"
     }
     // Always works, whatever the strictness: the way out.
     function abort(): string {

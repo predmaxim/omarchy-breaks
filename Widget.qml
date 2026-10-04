@@ -3,8 +3,8 @@ import Quickshell
 import qs.Ui
 import "logic.js" as L
 
-// Minutes to the next break: eye or running man. Click: a break now; right
-// click: pause 1 h (not in hard mode). The tooltip has today's numbers.
+// Minutes to the next break: eye or running man. A click opens the settings
+// (Settings.qml), with "break now" and "pause" in them. The tooltip has today's numbers.
 BarWidget {
   id: root
   moduleName: "predmaxim.breaks"
@@ -34,12 +34,10 @@ BarWidget {
         : root.service.tr(root.d.kind === "body" ? "Next: body in %1 min" : "Next: eyes in %1 min", root.minutes),
       root.service.tr("Today: %1 breaks", L.todayStats(root.service.history, Date.now()).breaks),
       root.service.tr("Streak: %1 days", L.streak(root.service.history, Date.now())),
-      root.service.tr("Click: break now. Right click: pause 1 h")
+      root.service.tr("Click: settings")
     ].join("\n")
     onPressed: function(button) {
-      if (!root.service) return
-      if (button === Qt.RightButton) root.service.pause(60)
-      else if (root.service.breakSteps.length === 0) root.service.startBreak(root.d.kind)
+      if (root.service && root.service.shell) root.service.shell.summon("predmaxim.breaks", "{}")
     }
   }
 }
