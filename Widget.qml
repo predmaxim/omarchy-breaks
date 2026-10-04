@@ -180,6 +180,8 @@ Panel {
                 iconSize: Style.font.subtitle * 1.5
                 horizontalPadding: Style.space(5)
                 verticalPadding: Style.space(2)
+                width: Math.max(implicitWidth, implicitHeight)   // square, like an icon button
+                height: width
                 tooltipText: root.tr(back ? "Back" : "Settings")
                 foreground: root.fg
                 fontFamily: root.font
