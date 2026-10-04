@@ -355,14 +355,13 @@ function rowsFor(page, s) {
       { type: "switch", key: "debug", label: "Debug" })
     return rows
   }
-  var main = [{ type: "head" }]
+  var main = [{ type: "head" }, { type: "choice", key: "strictness", label: "Strictness", options: STRICTNESS }]
   if (s.strictness !== "hard" || s.debug) main.push({ type: "action", key: "pause", label: "Pause 1 h" })
   main.push({ type: "switch", key: "soundEnabled", label: "Sounds" },
     { type: "switch", key: "silence", label: "Silence during breaks" },
     { type: "switch", key: "calendar", label: "Respect the calendar" },
     { type: "switch", key: "meetingNudges", label: "Movement tips during meetings" },
-    { type: "switch", key: "microEnabled", label: "Micro-pauses 20-20-20" },
-    { type: "choice", key: "strictness", label: "Strictness", options: STRICTNESS })
+    { type: "switch", key: "microEnabled", label: "Micro-pauses 20-20-20" })
   return main
 }
 
