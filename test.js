@@ -4,7 +4,7 @@ const path = require("path")
 const assert = require("assert")
 const L = new Function(fs.readFileSync(path.join(__dirname, "logic.js"), "utf8").replace(".pragma library", "") +
   "; return { DEFAULTS, normalize, seconds, readEntry, newState, tick, credit, plan, decide, busyEvents, eventAt, nextEvent," +
-  " postpone, skip, nudgeDue, NUDGES, TIPS, micBusy, excluded, parseProbe, EXERCISES, pickBreak, reps, streak, dayKey, parseHistory, todayStats, LIMITS, rowsFor, adjust, restoreState }")()
+  " postpone, skip, nudgeDue, callStart, NUDGES, TIPS, micBusy, excluded, parseProbe, EXERCISES, pickBreak, reps, streak, dayKey, parseHistory, todayStats, LIMITS, rowsFor, adjust, restoreState }")()
 
 // Settings: defaults fill gaps, junk falls back, numbers are clamped, eyesMax >= eyesMin.
 assert.deepStrictEqual(L.normalize({}), L.DEFAULTS)
@@ -138,6 +138,11 @@ assert.strictEqual(L.nudgeDue(ev(-25, 30), now, 0, cn), true)
 assert.strictEqual(L.nudgeDue(ev(-50, 30), now, now - 10 * 60000, cn), false)
 assert.strictEqual(L.nudgeDue(ev(-50, 30), now, 0, c), false)        // off by default
 assert.strictEqual(L.nudgeDue(null, now, 0, cn), false)
+// A call without a calendar event is a meeting too, from its start.
+assert.strictEqual(L.callStart(0, "microphone", 5), 5)
+assert.strictEqual(L.callStart(5, "camera", 9), 5)
+assert.strictEqual(L.callStart(5, "video", 9), 0)
+assert.strictEqual(L.callStart(5, "", 9), 0)
 assert.ok(L.NUDGES.length >= 4 && L.TIPS.length >= 3)
 
 // --- sensors
@@ -145,6 +150,9 @@ assert.strictEqual(L.micBusy([{ isStream: true, isSink: false, audio: { muted: f
 assert.strictEqual(L.micBusy([{ isStream: true, isSink: true, audio: { muted: false } }]), false)
 assert.strictEqual(L.micBusy([{ isStream: true, isSink: false, audio: { muted: true } }]), false)
 assert.strictEqual(L.micBusy([null, { isStream: false, isSink: false }]), false)
+// Filter chains (mic denoise, echo cancel) keep virtual capture streams open all the time: not a recording.
+assert.strictEqual(L.micBusy([{ isStream: true, isSink: false, audio: { muted: false }, properties: { "node.virtual": "true" } }]), false)
+assert.strictEqual(L.micBusy([{ isStream: true, isSink: false, audio: { muted: false }, properties: { "application.name": "Chromium" } }]), true)
 assert.strictEqual(L.excluded("Zoom", "zoom, teams"), true)
 assert.strictEqual(L.excluded("firefox", "zoom,teams"), false)
 assert.strictEqual(L.excluded("", ""), false)

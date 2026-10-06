@@ -212,14 +212,22 @@ function nudgeDue(event, now, last, c) {
   return now - Math.max(event.start, last) >= c.nudge * 1000
 }
 
+// A call without a calendar event (microphone or camera busy) is a meeting
+// for the tips too: when it started, 0 when there is none.
+function callStart(prev, reason, now) {
+  return reason === "microphone" || reason === "camera" ? (prev || now) : 0
+}
+
 // ------------------------------------------------------------ sensors
 
 // A capture stream that is not muted: someone is recording the microphone.
-// The same test as the shell's microphone widget.
+// The shell's microphone widget's test, minus virtual streams: filter chains
+// (omarchy-mic-denoise, echo cancel) keep theirs open all the time.
 function micBusy(nodes) {
   for (var i = 0; nodes && i < nodes.length; i++) {
     var n = nodes[i]
-    if (n && n.isStream && n.isSink === false && !(n.audio && n.audio.muted)) return true
+    if (n && n.isStream && n.isSink === false && !(n.audio && n.audio.muted) &&
+        !(n.properties && String(n.properties["node.virtual"]) === "true")) return true
   }
   return false
 }
@@ -360,7 +368,7 @@ function rowsFor(page, s) {
   main.push({ type: "switch", key: "soundEnabled", label: "Sounds" },
     { type: "switch", key: "silence", label: "Silence during breaks" },
     { type: "switch", key: "calendar", label: "Respect the calendar" },
-    { type: "switch", key: "meetingNudges", label: "Movement tips during meetings" },
+    { type: "switch", key: "meetingNudges", label: "Movement tips during meetings and calls" },
     { type: "switch", key: "microEnabled", label: "Micro-pauses 20-20-20" })
   return main
 }

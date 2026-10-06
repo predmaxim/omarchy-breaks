@@ -36,6 +36,7 @@ Item {
   property bool microShown: false
   property bool warned: false
   property real lastNudge: 0
+  property real callSince: 0
 
   // ------------------------------------------------------------ settings and files
 
@@ -183,7 +184,9 @@ Item {
       afterEvent: root.lastBlockEvent
     })
 
-    if (L.nudgeDue(current, now, root.lastNudge, root.c)) {
+    root.callSince = L.callStart(root.callSince, root.busyReason, now)
+    var meeting = current || (root.callSince ? { start: root.callSince } : null)
+    if (L.nudgeDue(meeting, now, root.lastNudge, root.c)) {
       root.lastNudge = now
       root.notify(root.tr(L.NUDGES[Math.floor(Math.random() * L.NUDGES.length)]))
     }

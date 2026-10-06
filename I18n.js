@@ -32,7 +32,7 @@ var TABLES = {
     "Micro-pause every, min": "Микропауза каждые, мин", "Micro-pause length, s": "Длина микропаузы, с",
     "Body": "Тело", "Break every, min": "Перерыв каждые, мин", "Join eyes into it within, min": "Объединять с глазами в пределах, мин",
     "Do not disturb": "Не мешать", "Respect the calendar": "Учитывать календарь",
-    "Movement tips during meetings": "Советы подвигаться на встречах", "Meeting tip every, min": "Совет каждые, мин",
+    "Movement tips during meetings and calls": "Советы подвигаться на встречах и созвонах", "Meeting tip every, min": "Совет каждые, мин",
     "Never interrupt these apps (window classes, comma separated)": "Не прерывать эти приложения (классы окон через запятую)",
     "Idle after, s": "Простой после, с", "Sounds": "Звуки", "Volume, %": "Громкость, %",
     "Minutes in the bar": "Минуты в баре",     "Debug": "Отладка", "Minutes become seconds; Super+Ctrl+Alt+Esc ends a break.": "Минуты становятся секундами; Super+Ctrl+Alt+Esc прерывает перерыв.",
