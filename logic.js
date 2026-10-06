@@ -9,7 +9,7 @@ var DEFAULTS = {
   micro: "always", microEvery: 20, microSeconds: 20,
   idleThreshold: 60,
   strictness: "hard", postponeCount: 2, postponeMinutes: 5,
-  workDays: "1234567", workStart: 0, workEnd: 1440,
+  workDays: "", workFrom: "", workTo: "",
   soundEnabled: true, soundVolume: 50,
   calendar: true, meetingNudges: false, meetingNudgeEvery: 25,
   showMinutes: false, silence: true, lockKeys: true,
@@ -21,8 +21,7 @@ var LIMITS = {
   eyesMin: [5, 120], eyesMax: [5, 180], eyesBreakSeconds: [20, 600],
   bodyEvery: [10, 240], bodySeconds: [60, 1800], merge: [0, 60],
   microEvery: [5, 60], microSeconds: [10, 120], idleThreshold: [10, 600],
-  postponeCount: [0, 10], postponeMinutes: [1, 30], soundVolume: [0, 100], meetingNudgeEvery: [5, 120],
-  workStart: [0, 1410], workEnd: [30, 1440]
+  postponeCount: [0, 10], postponeMinutes: [1, 30], soundVolume: [0, 100], meetingNudgeEvery: [5, 120]
 }
 
 var STRICTNESS = ["hard", "medium", "soft"]
@@ -42,7 +41,7 @@ function normalize(entry) {
   }
   if (STRICTNESS.indexOf(out.strictness) < 0) out.strictness = DEFAULTS.strictness
   if (MICRO.indexOf(out.micro) < 0) out.micro = DEFAULTS.micro
-  out.workDays = "1234567".split("").filter(function(d) { return out.workDays.indexOf(d) >= 0 }).join("") || DEFAULTS.workDays
+  out.workDays = "1234567".split("").filter(function(d) { return out.workDays.indexOf(d) >= 0 }).join("")
   if (out.eyesMax < out.eyesMin) out.eyesMax = out.eyesMin
   return out
 }
@@ -75,13 +74,24 @@ function readEntry(text, id) {
 
 // ------------------------------------------------------------ working hours
 
-// workDays: 1 Mon … 7 Sun; workStart–workEnd in minutes of the day. An end
-// before the start runs past midnight and belongs to the day it started.
+function validTime(t) { return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(t)) }
+function minutes(hhmm) { var p = String(hhmm).split(":"); return Number(p[0]) * 60 + Number(p[1]) }
+
+// Why the working hours can't be saved, as in the Workspaces schedule: ""
+// when they can. Nothing typed is fine (no schedule); no overnight ranges.
+function scheduleError(days, from, to) {
+  if (!from && !to) return ""
+  if (!validTime(from) || !validTime(to)) return "time"
+  if (minutes(to) <= minutes(from)) return "order"
+  return days ? "" : "days"
+}
+
+// workDays: 1 Mon … 7 Sun; workFrom–workTo "HH:MM" on those days. No
+// schedule (no time, or a broken one) — all the time is working time.
 function inSchedule(s, date) {
+  if (!s.workFrom || scheduleError(s.workDays, s.workFrom, s.workTo)) return true
   var t = date.getHours() * 60 + date.getMinutes(), day = date.getDay() || 7
-  var on = function(d) { return s.workDays.indexOf(String(d)) >= 0 }
-  if (s.workStart < s.workEnd) return on(day) && t >= s.workStart && t < s.workEnd
-  return on(day) && t >= s.workStart || on(day === 1 ? 7 : day - 1) && t < s.workEnd
+  return s.workDays.indexOf(String(day)) >= 0 && t >= minutes(s.workFrom) && t < minutes(s.workTo)
 }
 
 // Hard and medium keep to the working hours; soft ignores them.
@@ -91,12 +101,7 @@ function workTime(s, date) {
 
 function toggleDay(days, d) {
   var k = String(d)
-  if (days.indexOf(k) < 0) return "1234567".split("").filter(function(x) { return x === k || days.indexOf(x) >= 0 }).join("")
-  return days.length > 1 ? days.replace(k, "") : days
-}
-
-function hhmm(min) {
-  return pad(Math.floor(min / 60)) + ":" + pad(min % 60)
+  return "1234567".split("").filter(function(x) { return x === k ? days.indexOf(x) < 0 : days.indexOf(x) >= 0 }).join("")
 }
 
 // ------------------------------------------------------------ counters
@@ -393,8 +398,8 @@ function rowsFor(page, s) {
     var rows = [
       { type: "head" },
       { type: "days", key: "workDays", label: "Work days" },
-      { type: "time", key: "workStart", label: "Work from", step: 30 },
-      { type: "time", key: "workEnd", label: "Work until", step: 30 },
+      { type: "time", key: "workFrom", label: "Work from" },
+      { type: "time", key: "workTo", label: "Work until" },
       { type: "num", key: "eyesMin", label: "Eyes: no earlier than, min", step: 5 },
       { type: "num", key: "eyesMax", label: "Eyes: no later than, min", step: 5 },
       { type: "num", key: "bodyEvery", label: "Body: every, min", step: 5 }
@@ -426,7 +431,7 @@ function adjust(row, s, dx) {
     var o = row.options, i = (o.indexOf(v) + dx + o.length) % o.length
     return { key: row.key, value: o[i] }
   }
-  if (row.type === "num" || row.type === "time") {
+  if (row.type === "num") {
     var n = Math.min(LIMITS[row.key][1], Math.max(LIMITS[row.key][0], v + dx * row.step))
     return n === v ? null : { key: row.key, value: n }
   }

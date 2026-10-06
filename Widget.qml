@@ -29,6 +29,13 @@ Panel {
   property int headCol: 0
   // Day under the cursor on the work days row: 0 Mon … 6 Sun.
   property int dayCol: 0
+  // The working hours being edited, as in the Workspaces schedule: saved only
+  // when L.scheduleError has nothing against them, the error under the row.
+  property var draft: ({ workDays: "", workFrom: "", workTo: "" })
+  property string scheduleError: ""
+  // A time field has the keys: the catcher lets them through.
+  readonly property bool typing: keyCatcher.Window.activeFocusItem !== null && keyCatcher.Window.activeFocusItem !== keyCatcher
+  signal pressRow(int i)
 
   // The service is a separate plugin instance; look it up until it is there.
   Timer {
@@ -55,13 +62,25 @@ Panel {
   readonly property var today: service ? L.todayStats(service.history, Date.now()) : ({ breaks: 0, reps: {} })
   readonly property int streak: service ? L.streak(service.history, Date.now()) : 0
 
-  onOpenedChanged: if (opened) { root.page = "main"; root.cursor = 1; Qt.callLater(function() { keyCatcher.forceActiveFocus() }) }
+  onOpenedChanged: if (opened) { root.loadDraft(); root.page = "main"; root.cursor = 1; Qt.callLater(function() { keyCatcher.forceActiveFocus() }) }
   onRowsChanged: if (root.cursor >= root.rows.length) root.cursor = root.rows.length - 1
 
   function set(key, value) {
     var change = {}
     change[key] = value
     if (root.service) root.service.store(change)
+  }
+
+  function loadDraft() {
+    root.draft = { workDays: root.s.workDays, workFrom: root.s.workFrom, workTo: root.s.workTo }
+    root.scheduleError = ""
+  }
+  function setDraft(change) {
+    var d = Object.assign({}, root.draft, change), err = L.scheduleError(d.workDays, d.workFrom, d.workTo)
+    root.draft = d
+    root.scheduleError = err === "days" ? root.tr("Pick the days") : err === "time" ? root.tr("Time is HH:MM")
+      : err === "order" ? root.tr("The end must be after the start") : ""
+    if (!err && root.service) root.service.store(d)
   }
 
   function move(dy) {
@@ -95,7 +114,7 @@ Panel {
     if (c) root.set(c.key, c.value)
   }
 
-  // Enter or a click: toggle, press, step a choice forward, or switch the day.
+  // Enter or a click: toggle, press, step a choice forward, switch the day, or type the time.
   function activate(i) {
     var row = root.rows[i]
     if (!row || !root.service) return
@@ -107,7 +126,8 @@ Panel {
       else if (root.headCol === 2) root.set("enabled", !root.s.enabled)
       else root.showPage("settings")
     }
-    else if (row.type === "days") root.set("workDays", L.toggleDay(root.s.workDays, root.dayCol + 1))
+    else if (row.type === "days") root.setDraft({ workDays: L.toggleDay(root.draft.workDays, root.dayCol + 1) })
+    else if (row.type === "time") root.pressRow(i)
     else if (row.type === "switch" || row.type === "choice") root.change(i, 1)
   }
 
@@ -149,6 +169,7 @@ Panel {
         anchors.bottomMargin: card.contentBottomInset
         anchors.leftMargin: card.contentLeftInset
         focus: true
+        blocked: root.typing
         onMoveRequested: function(dx, dy) {
           if (dy) root.move(dy)
           else if (dx) root.change(root.cursor, dx)
@@ -252,7 +273,7 @@ Panel {
               required property int index
               visible: modelData.type !== "head"
               width: column.width
-              implicitHeight: Math.max(Style.space(42), control.implicitHeight + Style.spacing.xs * 2)
+              implicitHeight: Math.max(Style.space(42), control.implicitHeight + Style.spacing.xs * 2, labels.implicitHeight + Style.spacing.xs * 2)
               foreground: root.fg
               hasCursor: root.cursor === index
 
@@ -264,18 +285,32 @@ Panel {
                 onClicked: { root.cursor = row.index; root.activate(row.index) }
               }
 
-              Text {
+              // The label; under "Work until", why the working hours aren't saved.
+              Column {
+                id: labels
                 anchors.left: parent.left
                 anchors.leftMargin: Style.spacing.rowPaddingX
                 anchors.right: control.left
                 anchors.rightMargin: Style.space(8)
                 anchors.verticalCenter: parent.verticalCenter
-                text: row.modelData.label ? root.tr(row.modelData.label) : ""
-                color: root.fg
-                font.family: root.font
-                font.pixelSize: Style.font.body
-                font.bold: row.modelData.type === "action"
-                elide: Text.ElideRight
+                Text {
+                  width: parent.width
+                  text: row.modelData.label ? root.tr(row.modelData.label) : ""
+                  color: root.fg
+                  font.family: root.font
+                  font.pixelSize: Style.font.body
+                  font.bold: row.modelData.type === "action"
+                  elide: Text.ElideRight
+                }
+                Text {
+                  visible: text !== ""
+                  width: parent.width
+                  text: row.modelData.key === "workTo" ? root.scheduleError : ""
+                  color: Color.urgent
+                  font.family: root.font
+                  font.pixelSize: Style.font.caption
+                  wrapMode: Text.WordWrap
+                }
               }
 
               // The value on the right; ←/→ change it, so it is only a picture
@@ -285,7 +320,7 @@ Panel {
                 anchors.right: parent.right
                 anchors.rightMargin: Style.spacing.rowPaddingX
                 anchors.verticalCenter: parent.verticalCenter
-                sourceComponent: ({ num: numControl, time: numControl, switch: switchControl, choice: choiceControl, days: daysControl })[row.modelData.type] || null
+                sourceComponent: ({ num: numControl, time: timeControl, switch: switchControl, choice: choiceControl, days: daysControl })[row.modelData.type] || null
 
                 Component {
                   id: choiceControl
@@ -306,8 +341,7 @@ Panel {
                       model: [-1, 0, 1]
                       Text {
                         required property int modelData
-                        text: modelData < 0 ? "‹" : modelData > 0 ? "›"
-                          : row.modelData.type === "time" ? L.hhmm(root.s[row.modelData.key]) : root.s[row.modelData.key]
+                        text: modelData < 0 ? "‹" : modelData > 0 ? "›" : root.s[row.modelData.key]
                         color: modelData === 0 ? root.fg : root.dim
                         font.family: root.font
                         font.pixelSize: Style.font.body
@@ -322,30 +356,47 @@ Panel {
                     }
                   }
                 }
-                // Work days: on in full colour, off dimmed; the day under the
-                // cursor underlined. Enter or a click switches it.
+                // Work days and time, as in the Workspaces schedule: ←/→ walk the
+                // days, Enter or a click switches one; Enter on a time row types
+                // in its field, Enter or Esc gives the keys back, leaving saves.
                 Component {
                   id: daysControl
                   Row {
-                    spacing: Style.space(8)
+                    spacing: Style.space(4)
                     Repeater {
                       model: L.DAYS
-                      Text {
+                      Button {
                         required property string modelData
                         required property int index
-                        readonly property bool on: root.s.workDays.indexOf(String(index + 1)) >= 0
                         text: root.tr(modelData)
-                        color: on ? root.fg : root.dim
-                        font.family: root.font
-                        font.pixelSize: Style.font.body
-                        font.bold: on
-                        font.underline: root.cursor === row.index && root.dayCol === index
-                        MouseArea {
-                          anchors.fill: parent
-                          anchors.margins: -Style.space(4)
-                          onClicked: { root.cursor = row.index; root.dayCol = parent.index; root.activate(row.index) }
-                        }
+                        selected: root.draft.workDays.indexOf(String(index + 1)) >= 0
+                        hasCursor: row.hasCursor && root.dayCol === index
+                        horizontalPadding: Style.space(5)
+                        foreground: root.fg
+                        fontFamily: root.font
+                        onClicked: { root.cursor = row.index; root.dayCol = index; root.activate(row.index) }
                       }
+                    }
+                  }
+                }
+                Component {
+                  id: timeControl
+                  TextField {
+                    id: field
+                    width: Style.space(80)
+                    placeholderText: root.tr("HH:MM")
+                    text: root.draft[row.modelData.key]
+                    maximumLength: 5
+                    foreground: root.fg
+                    font.family: root.font
+                    font.pixelSize: Style.font.body
+                    Connections { target: root; function onPressRow(i) { if (i === row.index) field.forceActiveFocus() } }
+                    Keys.onEscapePressed: keyCatcher.forceActiveFocus()
+                    onAccepted: keyCatcher.forceActiveFocus()
+                    onEditingFinished: if (text.trim() !== root.draft[row.modelData.key]) {
+                      var c = {}
+                      c[row.modelData.key] = text.trim()
+                      root.setDraft(c)
                     }
                   }
                 }
