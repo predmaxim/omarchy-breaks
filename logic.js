@@ -9,7 +9,7 @@ var DEFAULTS = {
   micro: "always", microEvery: 20, microSeconds: 20,
   idleThreshold: 60,
   strictness: "hard", postponeCount: 2, postponeMinutes: 5,
-  workDays: "", workFrom: "", workTo: "",
+  schedule: false, workDays: "", workFrom: "", workTo: "",
   soundEnabled: true, soundVolume: 50,
   calendar: true, meetingNudges: false, meetingNudgeEvery: 25,
   showMinutes: false, silence: true, lockKeys: true,
@@ -87,9 +87,9 @@ function scheduleError(days, from, to) {
 }
 
 // workDays: 1 Mon … 7 Sun; workFrom–workTo "HH:MM" on those days. No
-// schedule (no time, or a broken one) — all the time is working time.
+// schedule (turned off, no time, or a broken one) — all the time is working time.
 function inSchedule(s, date) {
-  if (!s.workFrom || scheduleError(s.workDays, s.workFrom, s.workTo)) return true
+  if (!s.schedule || !s.workFrom || scheduleError(s.workDays, s.workFrom, s.workTo)) return true
   var t = date.getHours() * 60 + date.getMinutes(), day = date.getDay() || 7
   return s.workDays.indexOf(String(day)) >= 0 && t >= minutes(s.workFrom) && t < minutes(s.workTo)
 }
@@ -97,6 +97,24 @@ function inSchedule(s, date) {
 // Hard and medium keep to the working hours; soft ignores them.
 function workTime(s, date) {
   return s.strictness === "soft" || inSchedule(s, date)
+}
+
+// "Mon–Fri 09:00–18:00" for the schedule button; "" when it isn't set.
+function scheduleSummary(s, names) {
+  if (!s.workFrom || scheduleError(s.workDays, s.workFrom, s.workTo)) return ""
+  return dayRanges(s.workDays, names) + " " + s.workFrom + "–" + s.workTo
+}
+
+// Days as in the Workspaces schedule: three in a row and more as a range.
+function dayRanges(days, names) {
+  var d = days.split("").map(Number), out = []
+  for (var i = 0; i < d.length; i++) {
+    var j = i
+    while (j + 1 < d.length && d[j + 1] === d[j] + 1) j++
+    if (j - i >= 2) { out.push(names[d[i] - 1] + "–" + names[d[j] - 1]); i = j }
+    else out.push(names[d[i] - 1])
+  }
+  return out.join(", ")
 }
 
 function toggleDay(days, d) {
@@ -391,15 +409,20 @@ function todayStats(history, now) {
 // ------------------------------------------------------------ panel rows
 
 // The modal's rows, walked with ↑/↓, the header first (main: on/off and
-// settings buttons; settings: Back). Page "main": the actions and the
-// everyday switches; page "settings": the rest. Labels are English, for tr().
+// settings buttons; settings: Back; schedule: Back and its on/off). Page
+// "main": the actions, the everyday switches and the schedule button; page
+// "schedule": the working hours; page "settings": the rest. Labels are
+// English, for tr().
 function rowsFor(page, s) {
+  if (page === "schedule") return [
+    { type: "head" },
+    { type: "days", key: "workDays", label: "Work days" },
+    { type: "time", key: "workFrom", label: "Work from" },
+    { type: "time", key: "workTo", label: "Work until" }
+  ]
   if (page === "settings") {
     var rows = [
       { type: "head" },
-      { type: "days", key: "workDays", label: "Work days" },
-      { type: "time", key: "workFrom", label: "Work from" },
-      { type: "time", key: "workTo", label: "Work until" },
       { type: "num", key: "eyesMin", label: "Eyes: no earlier than, min", step: 5 },
       { type: "num", key: "eyesMax", label: "Eyes: no later than, min", step: 5 },
       { type: "num", key: "bodyEvery", label: "Body: every, min", step: 5 }
@@ -412,13 +435,14 @@ function rowsFor(page, s) {
       { type: "switch", key: "debug", label: "Debug" })
     return rows
   }
-  var main = [{ type: "head" }, { type: "choice", key: "strictness", label: "Strictness", options: STRICTNESS, labels: ["Hard", "Medium", "Soft"] }]
+  var main = [{ type: "head" }, { type: "choice", key: "strictness", label: "Strictness", options: STRICTNESS, labels: ["Hard", "Medium", "Soft"] },
+    { type: "choice", key: "micro", label: "Micro-pauses", options: MICRO, labels: ["Always", "On schedule", "Off"] }]
   if (s.strictness !== "hard" || s.debug) main.push({ type: "action", key: "pause", label: "Pause 1 h" })
   main.push({ type: "switch", key: "soundEnabled", label: "Sounds" },
     { type: "switch", key: "silence", label: "Silence during breaks" },
     { type: "switch", key: "calendar", label: "Respect the calendar" },
     { type: "switch", key: "meetingNudges", label: "Movement tips during meetings and calls" },
-    { type: "choice", key: "micro", label: "Micro-pauses", options: MICRO, labels: ["Always", "On schedule", "Off"] })
+    { type: "page", key: "schedule" })
   return main
 }
 

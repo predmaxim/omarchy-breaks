@@ -10,10 +10,12 @@ import "I18n.js" as I18n
 // The bar shows the icon through predmaxim.indicators (Indicator.qml); this
 // widget stays in the layout, hidden, for its settings and IPC
 // (`omarchy-shell predmaxim.breaks-panel toggle`). Its modal, in the middle of
-// the screen like todo's, is a list of rows (logic.js rowsFor) on two pages:
-// main (on/off and settings buttons in the header, everyday switches) and
-// settings. ↑/↓ walk the rows, ←/→ change the value or the header button,
-// Enter toggles or presses, Esc goes back from settings, then closes.
+// the screen like todo's, is a list of rows (logic.js rowsFor) on three pages:
+// main (on/off and settings buttons in the header, everyday switches, the
+// schedule button last), schedule (Back and its on/off in the header, the
+// working hours, as in Workspaces) and settings. ↑/↓ walk the rows, ←/→
+// change the value or the header button, Enter toggles or presses, Esc goes
+// back to main, then closes.
 // Rare settings (break lengths, idle threshold…) stay in shell.json. Settings
 // are written by the service into this entry.
 Panel {
@@ -59,10 +61,12 @@ Panel {
     : service.offHours ? tr("Outside working hours")
     : service.busyReason ? tr("Waiting: %1", tr(service.busyReason))
     : tr(d.kind === "body" ? "Next: body in %1 min" : "Next: eyes in %1 min", minutes)
+  readonly property string scheduleText: tr("Schedule: %1", !s.schedule ? tr("off")
+    : L.scheduleSummary(s, L.DAYS.map(function(d) { return tr(d) })) || tr("not set"))
   readonly property var today: service ? L.todayStats(service.history, Date.now()) : ({ breaks: 0, reps: {} })
   readonly property int streak: service ? L.streak(service.history, Date.now()) : 0
 
-  onOpenedChanged: if (opened) { root.loadDraft(); root.page = "main"; root.cursor = 1; Qt.callLater(function() { keyCatcher.forceActiveFocus() }) }
+  onOpenedChanged: if (opened) { root.page = "main"; root.cursor = 1; Qt.callLater(function() { keyCatcher.forceActiveFocus() }) }
   onRowsChanged: if (root.cursor >= root.rows.length) root.cursor = root.rows.length - 1
 
   function set(key, value) {
@@ -89,13 +93,17 @@ Panel {
   }
 
   function showPage(p) {
+    if (p === "schedule") root.loadDraft()
     root.page = p
     root.cursor = 1
     root.headCol = p === "main" ? 1 : 0
   }
+  // Back to main, onto the button that led away; from main, close.
   function back() {
-    if (root.page === "settings") root.showPage("main")
-    else root.close()
+    if (root.page === "main") return root.close()
+    var from = root.page
+    root.showPage("main")
+    if (from === "schedule") root.cursor = root.rows.findIndex(function(r) { return r.type === "page" })
   }
 
   // ←/→: the button in the header, the day on the work days row, the value elsewhere.
@@ -103,7 +111,7 @@ Panel {
     var row = root.rows[i]
     if (!row) return
     if (row.type === "head") {
-      root.headCol = Math.max(0, Math.min(root.page === "main" ? 2 : 0, root.headCol + dx))
+      root.headCol = Math.max(0, Math.min(({ main: 2, schedule: 1, settings: 0 })[root.page], root.headCol + dx))
       return
     }
     if (row.type === "days") {
@@ -120,12 +128,15 @@ Panel {
     if (!row || !root.service) return
     if (row.key === "pause") { root.service.pause(60); root.close() }
     else if (row.type === "head") {
-      // Main page: Break now, Settings, the switch; settings page: only Back.
-      if (root.page === "settings") root.showPage("main")
+      // Main page: Break now, Settings, the switch; schedule: Back, its
+      // switch; settings: only Back.
+      if (root.page === "schedule" && root.headCol === 1) root.set("schedule", !root.s.schedule)
+      else if (root.page !== "main") root.back()
       else if (root.headCol === 0) { root.close(); root.service.startBreak(root.d.kind) }
       else if (root.headCol === 2) root.set("enabled", !root.s.enabled)
       else root.showPage("settings")
     }
+    else if (row.type === "page") root.showPage(row.key)
     else if (row.type === "days") root.setDraft({ workDays: L.toggleDay(root.draft.workDays, root.dayCol + 1) })
     else if (row.type === "time") root.pressRow(i)
     else if (row.type === "switch" || row.type === "choice") root.change(i, 1)
@@ -188,7 +199,7 @@ Panel {
 
           PanelHero {
             width: column.width
-            title: root.tr(root.page === "settings" ? "Settings" : "Breaks")
+            title: root.tr(({ main: "Breaks", schedule: "Schedule", settings: "Settings" })[root.page])
             meta: root.nextText
             foreground: root.fg
             fontFamily: root.font
@@ -231,7 +242,7 @@ Panel {
                 onClicked: { root.cursor = 0; root.headCol = 0; root.activate(0) }
               }
               Button {
-                readonly property bool back: root.page === "settings"
+                readonly property bool back: root.page !== "main"
                 anchors.verticalCenter: parent.verticalCenter
                 iconText: back ? "󰁍" : "󰒓"
                 iconSize: Style.font.subtitle * 1.5
@@ -245,14 +256,17 @@ Panel {
                 hasCursor: root.cursor === 0 && root.headCol === (back ? 0 : 1)
                 onClicked: { root.cursor = 0; root.headCol = back ? 0 : 1; root.activate(0) }
               }
+              // The plugin's on/off on main, the schedule's on its page.
               ToggleSwitch {
-                visible: root.page === "main"
+                readonly property bool sched: root.page === "schedule"
+                readonly property int col: sched ? 1 : 2
+                visible: root.page !== "settings"
                 anchors.verticalCenter: parent.verticalCenter
-                checked: root.s.enabled
-                hasCursor: root.cursor === 0 && root.headCol === 2
+                checked: sched ? root.s.schedule : root.s.enabled
+                hasCursor: root.cursor === 0 && root.headCol === col
                 foreground: root.fg
-                onToggled: { root.cursor = 0; root.headCol = 2; root.activate(0) }
-                PanelToolTip { visible: parent.containsMouse; text: root.tr(root.s.enabled ? "Turn off" : "Turn on") }
+                onToggled: { root.cursor = 0; root.headCol = col; root.activate(0) }
+                PanelToolTip { visible: parent.containsMouse; text: root.tr(parent.checked ? "Turn off" : "Turn on") }
               }
             }
           }
@@ -295,7 +309,7 @@ Panel {
                 anchors.verticalCenter: parent.verticalCenter
                 Text {
                   width: parent.width
-                  text: row.modelData.label ? root.tr(row.modelData.label) : ""
+                  text: row.modelData.type === "page" ? root.scheduleText : row.modelData.label ? root.tr(row.modelData.label) : ""
                   color: root.fg
                   font.family: root.font
                   font.pixelSize: Style.font.body

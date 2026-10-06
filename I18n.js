@@ -57,6 +57,7 @@ var TABLES = {
     "Walk to the kitchen and back": "Дойди до кухни и обратно",
     "Work days": "Рабочие дни", "Work from": "Работа с", "Work until": "Работа до",
     "Outside working hours": "Вне рабочего времени",
+    "Schedule": "Расписание", "Schedule: %1": "Расписание: %1", "not set": "не задано", "off": "выкл",
     "HH:MM": "ЧЧ:ММ", "Pick the days": "Выберите дни", "Time is HH:MM": "Время — ЧЧ:ММ",
     "The end must be after the start": "Конец должен быть позже начала",
     "Mon": "Пн", "Tue": "Вт", "Wed": "Ср", "Thu": "Чт", "Fri": "Пт", "Sat": "Сб", "Sun": "Вс",
