@@ -27,6 +27,8 @@ Panel {
   property int cursor: 0
   // Header button under the cursor: main 0 settings, 1 on/off; settings 0 Back.
   property int headCol: 0
+  // Day under the cursor on the work days row: 0 Mon … 6 Sun.
+  property int dayCol: 0
 
   // The service is a separate plugin instance; look it up until it is there.
   Timer {
@@ -47,6 +49,7 @@ Panel {
 
   readonly property string nextText: !service ? ""
     : !s.enabled ? tr("Breaks are off")
+    : service.offHours ? tr("Outside working hours")
     : service.busyReason ? tr("Waiting: %1", tr(service.busyReason))
     : tr(d.kind === "body" ? "Next: body in %1 min" : "Next: eyes in %1 min", minutes)
   readonly property var today: service ? L.todayStats(service.history, Date.now()) : ({ breaks: 0, reps: {} })
@@ -76,7 +79,7 @@ Panel {
     else root.close()
   }
 
-  // ←/→: the button in the header, the value elsewhere.
+  // ←/→: the button in the header, the day on the work days row, the value elsewhere.
   function change(i, dx) {
     var row = root.rows[i]
     if (!row) return
@@ -84,11 +87,15 @@ Panel {
       root.headCol = Math.max(0, Math.min(root.page === "main" ? 2 : 0, root.headCol + dx))
       return
     }
+    if (row.type === "days") {
+      root.dayCol = Math.max(0, Math.min(6, root.dayCol + dx))
+      return
+    }
     var c = L.adjust(row, root.s, dx)
     if (c) root.set(c.key, c.value)
   }
 
-  // Enter or a click: toggle, press, or step a choice forward.
+  // Enter or a click: toggle, press, step a choice forward, or switch the day.
   function activate(i) {
     var row = root.rows[i]
     if (!row || !root.service) return
@@ -100,6 +107,7 @@ Panel {
       else if (root.headCol === 2) root.set("enabled", !root.s.enabled)
       else root.showPage("settings")
     }
+    else if (row.type === "days") root.set("workDays", L.toggleDay(root.s.workDays, root.dayCol + 1))
     else if (row.type === "switch" || row.type === "choice") root.change(i, 1)
   }
 
@@ -277,17 +285,17 @@ Panel {
                 anchors.right: parent.right
                 anchors.rightMargin: Style.spacing.rowPaddingX
                 anchors.verticalCenter: parent.verticalCenter
-                sourceComponent: ({ num: numControl, switch: switchControl, choice: choiceControl })[row.modelData.type] || null
+                sourceComponent: ({ num: numControl, time: numControl, switch: switchControl, choice: choiceControl, days: daysControl })[row.modelData.type] || null
 
                 Component {
                   id: choiceControl
                   ButtonGroup {
-                    options: [{ value: "hard", label: root.tr("Hard") }, { value: "medium", label: root.tr("Medium") }, { value: "soft", label: root.tr("Soft") }]
-                    value: root.s.strictness
+                    options: row.modelData.options.map(function(v, i) { return { value: v, label: root.tr(row.modelData.labels[i]) } })
+                    value: root.s[row.modelData.key]
                     focusable: false
                     foreground: root.fg
                     fontFamily: root.font
-                    onChanged: function(v) { root.set("strictness", v) }
+                    onChanged: function(v) { root.set(row.modelData.key, v) }
                   }
                 }
                 Component {
@@ -298,7 +306,8 @@ Panel {
                       model: [-1, 0, 1]
                       Text {
                         required property int modelData
-                        text: modelData < 0 ? "‹" : modelData > 0 ? "›" : root.s[row.modelData.key]
+                        text: modelData < 0 ? "‹" : modelData > 0 ? "›"
+                          : row.modelData.type === "time" ? L.hhmm(root.s[row.modelData.key]) : root.s[row.modelData.key]
                         color: modelData === 0 ? root.fg : root.dim
                         font.family: root.font
                         font.pixelSize: Style.font.body
@@ -308,6 +317,33 @@ Panel {
                           anchors.margins: -Style.space(6)
                           enabled: parent.modelData !== 0
                           onClicked: { root.cursor = row.index; root.change(row.index, parent.modelData) }
+                        }
+                      }
+                    }
+                  }
+                }
+                // Work days: on in full colour, off dimmed; the day under the
+                // cursor underlined. Enter or a click switches it.
+                Component {
+                  id: daysControl
+                  Row {
+                    spacing: Style.space(8)
+                    Repeater {
+                      model: L.DAYS
+                      Text {
+                        required property string modelData
+                        required property int index
+                        readonly property bool on: root.s.workDays.indexOf(String(index + 1)) >= 0
+                        text: root.tr(modelData)
+                        color: on ? root.fg : root.dim
+                        font.family: root.font
+                        font.pixelSize: Style.font.body
+                        font.bold: on
+                        font.underline: root.cursor === row.index && root.dayCol === index
+                        MouseArea {
+                          anchors.fill: parent
+                          anchors.margins: -Style.space(4)
+                          onClicked: { root.cursor = row.index; root.dayCol = parent.index; root.activate(row.index) }
                         }
                       }
                     }

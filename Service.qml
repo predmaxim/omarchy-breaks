@@ -35,6 +35,9 @@ Item {
   property string breakKind: ""
   property bool microShown: false
   property bool warned: false
+  // Outside working hours (L.workTime): eyes and body sleep; micro-pauses
+  // come only when set to "always".
+  property bool offHours: false
   property real lastNudge: 0
   property real callSince: 0
 
@@ -161,15 +164,23 @@ Item {
     var now = Date.now(), gap = (now - root.lastStep) / 1000
     root.lastStep = now
     if (root.breakSteps.length > 0) return
+    root.offHours = !L.workTime(root.settings, new Date(now))
     // Turned off: nothing counts and nothing comes.
     if (!root.settings.enabled) {
       if (root.microShown) root.finishMicro(false)
+      return
+    }
+    // Off hours without micro-pauses: like off, and nothing is owed when work starts.
+    if (root.offHours && root.settings.micro !== "always") {
+      if (root.microShown) root.finishMicro(false)
+      root.st = L.newState()
       return
     }
     // A gap longer than the idle threshold is sleep: an absence, not work (Review Focus 1).
     if (gap > root.c.idle) root.st = L.tick(root.st, 0, gap, root.c)
     var idleSec = root.idleSince > 0 && !root.mediaPlaying ? (now - root.idleSince) / 1000 : 0
     root.st = L.tick(root.st, Math.min(gap, 5), idleSec, root.c)
+    if (root.offHours) root.st = L.offHours(root.st)
 
     var ev = root.settings.calendar ? root.events : null
     var current = L.eventAt(ev, now)
@@ -181,12 +192,12 @@ Item {
     root.decision = L.decide(root.st, root.c, now, {
       events: ev, busy: root.busyReason !== "",
       freeFor: root.freeSince ? (now - root.freeSince) / 1000 : 0,
-      afterEvent: root.lastBlockEvent
+      afterEvent: root.lastBlockEvent, offHours: root.offHours
     })
 
     root.callSince = L.callStart(root.callSince, root.busyReason, now)
     var meeting = current || (root.callSince ? { start: root.callSince } : null)
-    if (L.nudgeDue(meeting, now, root.lastNudge, root.c)) {
+    if (!root.offHours && L.nudgeDue(meeting, now, root.lastNudge, root.c)) {
       root.lastNudge = now
       root.notify(root.tr(L.NUDGES[Math.floor(Math.random() * L.NUDGES.length)]))
     }
@@ -271,6 +282,7 @@ Item {
   // minutes to the next break and what it is. Written when it changes.
   readonly property string indicatorState: JSON.stringify({
     enabled: root.settings.enabled,
+    offHours: root.offHours,
     showMinutes: root.settings.showMinutes,
     minutes: Math.ceil(root.decision.in / 60),
     kind: root.decision.kind,
@@ -320,7 +332,7 @@ Item {
     target: "predmaxim.breaks"
 
     function status(): string {
-      return JSON.stringify({ state: root.st, decision: root.decision, busy: root.busyReason,
+      return JSON.stringify({ state: root.st, decision: root.decision, busy: root.busyReason, offHours: root.offHours,
         inBreak: root.breakSteps.length > 0, micro: root.microShown, idleSince: root.idleSince,
         events: root.events ? root.events.length : null, settings: root.settings })
     }

@@ -1,14 +1,15 @@
 .pragma library
-// predmaxim.breaks: everything that needs no QML — settings, the schedule,
+// predmaxim.breaks: everything that needs no QML — settings, working hours, the schedule,
 // busy checks, exercise choice, history and the streak (node test.js).
 
 var DEFAULTS = {
   enabled: true,
   eyesMin: 30, eyesMax: 50, eyesBreakSeconds: 90,
   bodyEvery: 60, bodySeconds: 420, merge: 15,
-  microEnabled: true, microEvery: 20, microSeconds: 20,
+  micro: "always", microEvery: 20, microSeconds: 20,
   idleThreshold: 60,
   strictness: "hard", postponeCount: 2, postponeMinutes: 5,
+  workDays: "1234567", workStart: 0, workEnd: 1440,
   soundEnabled: true, soundVolume: 50,
   calendar: true, meetingNudges: false, meetingNudgeEvery: 25,
   showMinutes: false, silence: true, lockKeys: true,
@@ -20,10 +21,13 @@ var LIMITS = {
   eyesMin: [5, 120], eyesMax: [5, 180], eyesBreakSeconds: [20, 600],
   bodyEvery: [10, 240], bodySeconds: [60, 1800], merge: [0, 60],
   microEvery: [5, 60], microSeconds: [10, 120], idleThreshold: [10, 600],
-  postponeCount: [0, 10], postponeMinutes: [1, 30], soundVolume: [0, 100], meetingNudgeEvery: [5, 120]
+  postponeCount: [0, 10], postponeMinutes: [1, 30], soundVolume: [0, 100], meetingNudgeEvery: [5, 120],
+  workStart: [0, 1410], workEnd: [30, 1440]
 }
 
 var STRICTNESS = ["hard", "medium", "soft"]
+var MICRO = ["always", "schedule", "off"]
+var DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 function normalize(entry) {
   var e = entry || {}, out = {}
@@ -37,6 +41,8 @@ function normalize(entry) {
       out[k] = typeof v === "string" ? v : d
   }
   if (STRICTNESS.indexOf(out.strictness) < 0) out.strictness = DEFAULTS.strictness
+  if (MICRO.indexOf(out.micro) < 0) out.micro = DEFAULTS.micro
+  out.workDays = "1234567".split("").filter(function(d) { return out.workDays.indexOf(d) >= 0 }).join("") || DEFAULTS.workDays
   if (out.eyesMax < out.eyesMin) out.eyesMax = out.eyesMin
   return out
 }
@@ -47,7 +53,7 @@ function seconds(s) {
   return {
     eyesMin: s.eyesMin * u, eyesMax: s.eyesMax * u, eyesBreak: s.eyesBreakSeconds,
     body: s.bodyEvery * u, bodyBreak: s.bodySeconds, merge: s.merge * u,
-    micro: s.microEnabled ? s.microEvery * u : 0, microLength: s.microSeconds, microGap: 5 * u,
+    micro: s.micro !== "off" ? s.microEvery * u : 0, microLength: s.microSeconds, microGap: 5 * u,
     idle: s.idleThreshold, postpone: s.postponeMinutes * u,
     nudge: s.meetingNudges ? s.meetingNudgeEvery * u : 0,
     lead: 60, grace: 30, after: 120
@@ -65,6 +71,32 @@ function readEntry(text, id) {
       if (list[i] && list[i].id === id) return list[i]
   }
   return {}
+}
+
+// ------------------------------------------------------------ working hours
+
+// workDays: 1 Mon … 7 Sun; workStart–workEnd in minutes of the day. An end
+// before the start runs past midnight and belongs to the day it started.
+function inSchedule(s, date) {
+  var t = date.getHours() * 60 + date.getMinutes(), day = date.getDay() || 7
+  var on = function(d) { return s.workDays.indexOf(String(d)) >= 0 }
+  if (s.workStart < s.workEnd) return on(day) && t >= s.workStart && t < s.workEnd
+  return on(day) && t >= s.workStart || on(day === 1 ? 7 : day - 1) && t < s.workEnd
+}
+
+// Hard and medium keep to the working hours; soft ignores them.
+function workTime(s, date) {
+  return s.strictness === "soft" || inSchedule(s, date)
+}
+
+function toggleDay(days, d) {
+  var k = String(d)
+  if (days.indexOf(k) < 0) return "1234567".split("").filter(function(x) { return x === k || days.indexOf(x) >= 0 }).join("")
+  return days.length > 1 ? days.replace(k, "") : days
+}
+
+function hhmm(min) {
+  return pad(Math.floor(min / 60)) + ":" + pad(min % 60)
 }
 
 // ------------------------------------------------------------ counters
@@ -87,6 +119,14 @@ function credit(st, kind) {
   if (kind === "body") n.body = 0
   n.snoozeUntil = 0
   n.postponed = 0
+  return n
+}
+
+// Outside working hours only the micro-pause counts; eyes and body start
+// over when work does.
+function offHours(st) {
+  var n = newState()
+  n.micro = st.micro
   return n
 }
 
@@ -163,16 +203,17 @@ function plan(st, c, now, events) {
 }
 
 // What to do this second. ctx: events (null: no calendar), busy (sensors),
-// freeFor (seconds since nothing blocks), afterEvent (the last block was a meeting).
+// freeFor (seconds since nothing blocks), afterEvent (the last block was a
+// meeting), offHours (outside working hours: micro-pauses only).
 function decide(st, c, now, ctx) {
   var p = plan(st, c, now, ctx.events)
   var blocked = ctx.busy || eventAt(ctx.events, now) !== null
-  if (p.in <= 0) {
+  if (p.in <= 0 && !ctx.offHours) {
     if (blocked || ctx.freeFor < (ctx.afterEvent ? c.after : c.grace)) return { action: "wait", kind: p.kind, in: 0 }
     return { action: "break", kind: p.kind, in: 0 }
   }
   if (c.micro && st.micro >= c.micro && p.in >= c.microGap && !blocked) return { action: "micro", kind: p.kind, in: p.in }
-  if (p.in <= c.lead && !blocked) return { action: "warn", kind: p.kind, in: p.in }
+  if (p.in <= c.lead && !blocked && !ctx.offHours) return { action: "warn", kind: p.kind, in: p.in }
   return { action: "none", kind: p.kind, in: p.in }
 }
 
@@ -351,11 +392,14 @@ function rowsFor(page, s) {
   if (page === "settings") {
     var rows = [
       { type: "head" },
+      { type: "days", key: "workDays", label: "Work days" },
+      { type: "time", key: "workStart", label: "Work from", step: 30 },
+      { type: "time", key: "workEnd", label: "Work until", step: 30 },
       { type: "num", key: "eyesMin", label: "Eyes: no earlier than, min", step: 5 },
       { type: "num", key: "eyesMax", label: "Eyes: no later than, min", step: 5 },
       { type: "num", key: "bodyEvery", label: "Body: every, min", step: 5 }
     ]
-    if (s.microEnabled) rows.push({ type: "num", key: "microEvery", label: "Micro-pause every, min", step: 5 })
+    if (s.micro !== "off") rows.push({ type: "num", key: "microEvery", label: "Micro-pause every, min", step: 5 })
     rows.push({ type: "num", key: "postponeCount", label: "Postpones per break", step: 1 })
     if (s.soundEnabled) rows.push({ type: "num", key: "soundVolume", label: "Volume, %", step: 10 })
     rows.push({ type: "switch", key: "lockKeys", label: "Block hotkeys during breaks" },
@@ -363,13 +407,13 @@ function rowsFor(page, s) {
       { type: "switch", key: "debug", label: "Debug" })
     return rows
   }
-  var main = [{ type: "head" }, { type: "choice", key: "strictness", label: "Strictness", options: STRICTNESS }]
+  var main = [{ type: "head" }, { type: "choice", key: "strictness", label: "Strictness", options: STRICTNESS, labels: ["Hard", "Medium", "Soft"] }]
   if (s.strictness !== "hard" || s.debug) main.push({ type: "action", key: "pause", label: "Pause 1 h" })
   main.push({ type: "switch", key: "soundEnabled", label: "Sounds" },
     { type: "switch", key: "silence", label: "Silence during breaks" },
     { type: "switch", key: "calendar", label: "Respect the calendar" },
     { type: "switch", key: "meetingNudges", label: "Movement tips during meetings and calls" },
-    { type: "switch", key: "microEnabled", label: "Micro-pauses 20-20-20" })
+    { type: "choice", key: "micro", label: "Micro-pauses", options: MICRO, labels: ["Always", "On schedule", "Off"] })
   return main
 }
 
@@ -382,7 +426,7 @@ function adjust(row, s, dx) {
     var o = row.options, i = (o.indexOf(v) + dx + o.length) % o.length
     return { key: row.key, value: o[i] }
   }
-  if (row.type === "num") {
+  if (row.type === "num" || row.type === "time") {
     var n = Math.min(LIMITS[row.key][1], Math.max(LIMITS[row.key][0], v + dx * row.step))
     return n === v ? null : { key: row.key, value: n }
   }

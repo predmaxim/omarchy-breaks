@@ -28,7 +28,7 @@ var TABLES = {
     "Strictness": "Строгость", "Hard": "Жёстко", "Medium": "Средне", "Soft": "Мягко",
     "Postpones per break": "Отсрочек за перерыв", "Postpone by, min": "Отсрочка, мин",
     "Eyes": "Глаза", "Break no earlier than, min": "Перерыв не раньше, мин", "Break no later than, min": "Перерыв не позже, мин",
-    "Break length, s": "Длина перерыва, с", "Micro-pauses 20-20-20": "Микропаузы 20-20-20",
+    "Break length, s": "Длина перерыва, с", "Micro-pauses": "Микропаузы",
     "Micro-pause every, min": "Микропауза каждые, мин", "Micro-pause length, s": "Длина микропаузы, с",
     "Body": "Тело", "Break every, min": "Перерыв каждые, мин", "Join eyes into it within, min": "Объединять с глазами в пределах, мин",
     "Do not disturb": "Не мешать", "Respect the calendar": "Учитывать календарь",
@@ -55,6 +55,10 @@ var TABLES = {
     "Drink a glass of water": "Выпей стакан воды",
     "Go to the window: daylight is good for the eyes": "Подойди к окну: дневной свет полезен глазам",
     "Walk to the kitchen and back": "Дойди до кухни и обратно",
+    "Work days": "Рабочие дни", "Work from": "Работа с", "Work until": "Работа до",
+    "Outside working hours": "Вне рабочего времени",
+    "Mon": "Пн", "Tue": "Вт", "Wed": "Ср", "Thu": "Чт", "Fri": "Пт", "Sat": "Сб", "Sun": "Вс",
+    "Always": "Всегда", "On schedule": "По расписанию",
     "Done": "Готово", "Correct": "Верно", "It was %1": "Было %1"
   }
 }

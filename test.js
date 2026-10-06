@@ -4,7 +4,7 @@ const path = require("path")
 const assert = require("assert")
 const L = new Function(fs.readFileSync(path.join(__dirname, "logic.js"), "utf8").replace(".pragma library", "") +
   "; return { DEFAULTS, normalize, seconds, readEntry, newState, tick, credit, plan, decide, busyEvents, eventAt, nextEvent," +
-  " postpone, skip, nudgeDue, callStart, NUDGES, TIPS, micBusy, excluded, parseProbe, EXERCISES, pickBreak, reps, streak, dayKey, parseHistory, todayStats, LIMITS, rowsFor, adjust, restoreState }")()
+  " postpone, skip, nudgeDue, callStart, NUDGES, TIPS, micBusy, excluded, parseProbe, EXERCISES, pickBreak, reps, streak, dayKey, parseHistory, todayStats, LIMITS, rowsFor, adjust, restoreState, inSchedule, workTime, offHours, toggleDay, hhmm }")()
 
 // Settings: defaults fill gaps, junk falls back, numbers are clamped, eyesMax >= eyesMin.
 assert.deepStrictEqual(L.normalize({}), L.DEFAULTS)
@@ -22,7 +22,8 @@ let c = L.seconds(L.DEFAULTS)
 assert.strictEqual(c.body, 3600); assert.strictEqual(c.eyesMin, 1800); assert.strictEqual(c.eyesMax, 3000)
 assert.strictEqual(c.eyesBreak, 90); assert.strictEqual(c.micro, 1200); assert.strictEqual(c.merge, 900)
 assert.strictEqual(L.seconds(L.normalize({ debug: true })).body, 60)
-assert.strictEqual(L.seconds(L.normalize({ microEnabled: false })).micro, 0)
+assert.strictEqual(L.seconds(L.normalize({ micro: "off" })).micro, 0)
+assert.strictEqual(L.seconds(L.normalize({ micro: "schedule" })).micro, 1200)
 assert.strictEqual(L.seconds(L.normalize({ meetingNudges: true })).nudge, 1500)
 assert.strictEqual(c.nudge, 0)
 
@@ -35,7 +36,47 @@ assert.strictEqual(L.readEntry("{oops", "predmaxim.breaks"), null)
 assert.strictEqual(L.normalize({}).enabled, true)
 assert.strictEqual(L.normalize({ enabled: false }).enabled, false)
 
+// Micro-pauses: always, on schedule or off; junk falls back to always.
+assert.strictEqual(L.normalize({}).micro, "always")
+assert.strictEqual(L.normalize({ micro: "sometimes" }).micro, "always")
+// Work days: digits 1 (Mon) … 7 (Sun), sorted, no repeats; nothing valid -> every day.
+assert.strictEqual(L.normalize({ workDays: "5135" }).workDays, "135")
+assert.strictEqual(L.normalize({ workDays: "08x" }).workDays, "1234567")
+assert.strictEqual(L.normalize({ workDays: "" }).workDays, "1234567")
+assert.strictEqual(L.normalize({ workEnd: 2000 }).workEnd, 1440)
+
 console.log("settings ok")
+
+// --- working hours: Mon 2026-10-05, Sat 10-10, Sun 10-11 (local time)
+{
+  const at = (d, h, m) => new Date(2026, 9, d, h, m || 0)
+  const W = L.normalize({ workDays: "12345", workStart: 9 * 60, workEnd: 18 * 60 })
+  assert.strictEqual(L.inSchedule(W, at(5, 9)), true)
+  assert.strictEqual(L.inSchedule(W, at(5, 8, 59)), false)
+  assert.strictEqual(L.inSchedule(W, at(5, 17, 59)), true)
+  assert.strictEqual(L.inSchedule(W, at(5, 18)), false)            // the end is not included
+  assert.strictEqual(L.inSchedule(W, at(10, 12)), false)            // Saturday
+  assert.strictEqual(L.inSchedule(L.normalize({}), at(11, 3)), true) // default: every day, all day
+  // An end before the start runs past midnight and belongs to the day it started.
+  const N = L.normalize({ workDays: "5", workStart: 22 * 60, workEnd: 2 * 60 })
+  assert.strictEqual(L.inSchedule(N, at(9, 23)), true)              // Friday night
+  assert.strictEqual(L.inSchedule(N, at(10, 1)), true)              // Saturday, still Friday's shift
+  assert.strictEqual(L.inSchedule(N, at(10, 3)), false)
+  assert.strictEqual(L.inSchedule(N, at(10, 23)), false)            // Saturday is not a work day
+  assert.strictEqual(L.inSchedule(N, at(9, 1)), false)              // Thursday was not either
+  // Hard and medium keep to the schedule, soft ignores it.
+  assert.strictEqual(L.workTime(W, at(10, 12)), false)
+  assert.strictEqual(L.workTime(L.normalize({ workDays: "12345", strictness: "medium" }), at(10, 12)), false)
+  assert.strictEqual(L.workTime(L.normalize({ workDays: "12345", strictness: "soft" }), at(10, 12)), true)
+  // Days on and off; the last one stays.
+  assert.strictEqual(L.toggleDay("135", 2), "1235")
+  assert.strictEqual(L.toggleDay("135", 3), "15")
+  assert.strictEqual(L.toggleDay("3", 3), "3")
+  assert.strictEqual(L.hhmm(9 * 60 + 30), "09:30")
+  assert.strictEqual(L.hhmm(1440), "24:00")
+}
+
+console.log("working hours ok")
 
 // --- counters
 c = L.seconds(L.DEFAULTS)
@@ -119,7 +160,12 @@ assert.strictEqual(L.decide(S(40, 0), c, now, ctx({ events: [ev(-5, 30)] })).act
 assert.strictEqual(L.decide(S(20, 20, { micro: 20 * M }), c, now, ctx()).action, "micro")
 assert.strictEqual(L.decide(S(36, 36, { micro: 20 * M }), c, now, ctx()).action, "none")
 assert.strictEqual(L.decide(S(20, 20, { micro: 20 * M }), c, now, ctx({ busy: true })).action, "none")
-assert.strictEqual(L.decide(S(20, 20, { micro: 20 * M }), L.seconds(L.normalize({ microEnabled: false })), now, ctx()).action, "none")
+assert.strictEqual(L.decide(S(20, 20, { micro: 20 * M }), L.seconds(L.normalize({ micro: "off" })), now, ctx()).action, "none")
+// Outside working hours: no break and no warning, only a micro-pause; eyes and body start over.
+assert.strictEqual(L.decide(S(40, 0), c, now, ctx({ offHours: true })).action, "none")
+assert.strictEqual(L.decide(S(39.5, 0), c, now, ctx({ offHours: true })).action, "none")
+assert.strictEqual(L.decide(L.offHours(S(40, 70, { micro: 20 * M })), c, now, ctx({ offHours: true })).action, "micro")
+assert.deepStrictEqual(L.offHours(S(40, 70, { micro: 300, snoozeUntil: 9, postponed: 1 })), { eyes: 0, body: 0, micro: 300, snoozeUntil: 0, postponed: 0 })
 
 // --- postpone and skip (Review Focus 5)
 const hard = L.normalize({}), soft = L.normalize({ strictness: "soft" })
@@ -198,15 +244,18 @@ console.log("decide ok")
 // --- panel rows (keyboard)
 const D = L.normalize({})
 const ids = (tab, st) => L.rowsFor(tab, st).map(r => r.key || r.type)
-assert.deepStrictEqual(ids("main", D), ["head", "strictness", "soundEnabled", "silence", "calendar", "meetingNudges", "microEnabled"])
+assert.deepStrictEqual(ids("main", D), ["head", "strictness", "soundEnabled", "silence", "calendar", "meetingNudges", "micro"])
 assert.deepStrictEqual(ids("main", L.normalize({ strictness: "soft" })).slice(0, 3), ["head", "strictness", "pause"])
-assert.deepStrictEqual(ids("settings", D), ["head", "eyesMin", "eyesMax", "bodyEvery", "microEvery", "postponeCount", "soundVolume", "lockKeys", "showMinutes", "debug"])
-assert.deepStrictEqual(ids("settings", L.normalize({ microEnabled: false, soundEnabled: false })), ["head", "eyesMin", "eyesMax", "bodyEvery", "postponeCount", "lockKeys", "showMinutes", "debug"])
+assert.deepStrictEqual(ids("settings", D), ["head", "workDays", "workStart", "workEnd", "eyesMin", "eyesMax", "bodyEvery", "microEvery", "postponeCount", "soundVolume", "lockKeys", "showMinutes", "debug"])
+assert.deepStrictEqual(ids("settings", L.normalize({ micro: "off", soundEnabled: false })), ["head", "workDays", "workStart", "workEnd", "eyesMin", "eyesMax", "bodyEvery", "postponeCount", "lockKeys", "showMinutes", "debug"])
 const row = (tab, key) => L.rowsFor(tab, D).filter(r => r.key === key)[0]
 assert.deepStrictEqual(L.adjust(row("settings", "eyesMin"), D, 1), { key: "eyesMin", value: 35 })
 assert.deepStrictEqual(L.adjust(row("settings", "eyesMin"), D, -1), { key: "eyesMin", value: 25 })
 assert.deepStrictEqual(L.adjust(row("settings", "eyesMin"), L.normalize({ eyesMin: 5 }), -1), null)   // at the limit
-assert.deepStrictEqual(L.adjust(row("main", "microEnabled"), D, 1), { key: "microEnabled", value: false })
+assert.deepStrictEqual(L.adjust(row("main", "micro"), D, 1), { key: "micro", value: "schedule" })
+assert.deepStrictEqual(L.adjust(row("settings", "workStart"), D, 1), { key: "workStart", value: 30 })
+assert.deepStrictEqual(L.adjust(row("settings", "workEnd"), D, 1), null)   // 24:00 is the limit
+assert.strictEqual(L.adjust(row("settings", "workDays"), D, 1), null)      // ←/→ walk the days in the panel
 assert.deepStrictEqual(L.adjust(row("main", "strictness"), D, 1), { key: "strictness", value: "medium" })
 assert.deepStrictEqual(L.adjust(row("main", "strictness"), D, -1), { key: "strictness", value: "soft" })
 assert.deepStrictEqual(L.adjust(row("settings", "soundVolume"), D, 1), { key: "soundVolume", value: 60 })
