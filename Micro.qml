@@ -43,7 +43,7 @@ Item {
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
         Rectangle {
-          anchors.fill: parent; radius: 8
+          anchors.fill: parent; radius: Style.cornerRadius
           color: Color.background; border.color: Color.accent
           Text {
             id: card
