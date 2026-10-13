@@ -35,7 +35,7 @@ var TABLES = {
     "Movement tips during meetings and calls": "Советы подвигаться на встречах и созвонах", "Meeting tip every, min": "Совет каждые, мин",
     "Never interrupt these apps (window classes, comma separated)": "Не прерывать эти приложения (классы окон через запятую)",
     "Idle after, s": "Простой после, с", "Sounds": "Звуки", "Volume, %": "Громкость, %",
-    "Minutes in the bar": "Минуты в баре",     "Debug": "Отладка", "Minutes become seconds; Super+Ctrl+Alt+Esc ends a break.": "Минуты становятся секундами; Super+Ctrl+Alt+Esc прерывает перерыв.",
+    "Minutes in the bar": "Минуты в баре",     "Debug": "Отладка", "Minutes become seconds; Super+Shift+Alt+P ends a break.": "Минуты становятся секундами; Super+Shift+Alt+P прерывает перерыв.",
     "Catch the dot": "Поймай точку", "Click the dot as soon as it jumps": "Кликай по точке, как только она прыгнет",
     "Follow the figure eight": "Следи за восьмёркой", "Only the eyes move, the head stays still": "Двигаются только глаза, голова неподвижна",
     "Look far away": "Посмотри вдаль", "Look at something 6 m away. Which number flashed in the corner?": "Смотри на предмет в 6 м. Какое число мелькнуло в углу?",

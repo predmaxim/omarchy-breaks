@@ -1,7 +1,7 @@
 #!/bin/bash
 # Break mode of predmaxim.breaks (Service.qml):
 #   quiet.sh on LOCK MUTE   LOCK=1: the predmaxim-breaks Hyprland submap (only
-#                           the way out, Super+Ctrl+Alt+Esc); MUTE=1: mute the
+#                           the way out, Super+Shift+Alt+P); MUTE=1: mute the
 #                           default output
 #   quiet.sh off            undo what "on" did
 #   quiet.sh cue CMD...     play a cue through the muted output

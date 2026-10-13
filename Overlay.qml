@@ -81,8 +81,9 @@ Item {
           anchors.fill: parent
           focus: win.main
           Keys.onPressed: function(event) {
-            if (root.s.settings.debug && event.key === Qt.Key_Escape
-                && (event.modifiers & Qt.ControlModifier) && (event.modifiers & Qt.AltModifier) && (event.modifiers & Qt.MetaModifier)) {
+            // Super+Shift+Alt+P; P by scan code (33), so any layout.
+            if (root.s.settings.debug && event.nativeScanCode === 33
+                && (event.modifiers & Qt.ShiftModifier) && (event.modifiers & Qt.AltModifier) && (event.modifiers & Qt.MetaModifier)) {
               root.s.finishBreak("abort"); event.accepted = true; return
             }
             if (!root.step || !root.step.needsInput) { root.touched(); event.accepted = true }
