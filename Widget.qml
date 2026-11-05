@@ -20,6 +20,8 @@ import "I18n.js" as I18n
 // are written by the service into this entry.
 Panel {
   id: root
+  // Fixed status colours (FixedColors.qml): a theme's red can be any colour.
+  readonly property QtObject fixedColors: FixedColors {}
   moduleName: "predmaxim.breaks"
   ipcTarget: "predmaxim.breaks-panel"
 
@@ -320,7 +322,7 @@ Panel {
                   visible: text !== ""
                   width: parent.width
                   text: row.modelData.key === "workTo" ? root.scheduleError : ""
-                  color: Color.urgent
+                  color: fixedColors.red
                   font.family: root.font
                   font.pixelSize: Style.font.caption
                   wrapMode: Text.WordWrap

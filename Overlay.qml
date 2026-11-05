@@ -11,6 +11,8 @@ import "logic.js" as L
 // the keyboard.
 Item {
   id: root
+  // Fixed status colours (FixedColors.qml): a theme's red can be any colour.
+  readonly property QtObject fixedColors: FixedColors {}
   property var service: null
   readonly property var s: service
   readonly property bool open: s !== null && s.breakSteps.length > 0
@@ -113,7 +115,7 @@ Item {
             }
             Text {
               text: root.paused ? root.s.tr("Hands off: step away from the keyboard") : Math.ceil(root.remaining) + " s"
-              color: root.paused ? Color.urgent : Color.accent; font.pixelSize: 22
+              color: root.paused ? fixedColors.red : Color.accent; font.pixelSize: 22
             }
             Loader {
               id: exercise
