@@ -286,12 +286,14 @@ function callStart(prev, reason, now) {
 
 // A capture stream that is not muted: someone is recording the microphone.
 // The shell's microphone widget's test, minus virtual streams: filter chains
-// (omarchy-mic-denoise, echo cancel) keep theirs open all the time.
+// (omarchy-mic-denoise, echo cancel) keep theirs open all the time; and minus
+// Oma's ear (agent-speak, node.name "oma-ear"): she listens for her name all the
+// time on AC power — the same rule as omarchy-presence.
 function micBusy(nodes) {
   for (var i = 0; nodes && i < nodes.length; i++) {
-    var n = nodes[i]
+    var n = nodes[i], p = (n && n.properties) || {}
     if (n && n.isStream && n.isSink === false && !(n.audio && n.audio.muted) &&
-        !(n.properties && String(n.properties["node.virtual"]) === "true")) return true
+        String(p["node.virtual"]) !== "true" && p["node.name"] !== "oma-ear") return true
   }
   return false
 }

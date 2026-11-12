@@ -209,6 +209,8 @@ assert.strictEqual(L.micBusy([null, { isStream: false, isSink: false }]), false)
 // Filter chains (mic denoise, echo cancel) keep virtual capture streams open all the time: not a recording.
 assert.strictEqual(L.micBusy([{ isStream: true, isSink: false, audio: { muted: false }, properties: { "node.virtual": "true" } }]), false)
 assert.strictEqual(L.micBusy([{ isStream: true, isSink: false, audio: { muted: false }, properties: { "application.name": "Chromium" } }]), true)
+// Oma (agent-speak) listens for her name with her ear stream open all the time: not a call, as in omarchy-presence.
+assert.strictEqual(L.micBusy([{ isStream: true, isSink: false, audio: { muted: false }, properties: { "node.name": "oma-ear" } }]), false)
 assert.strictEqual(L.excluded("Zoom", "zoom, teams"), true)
 assert.strictEqual(L.excluded("firefox", "zoom,teams"), false)
 assert.strictEqual(L.excluded("", ""), false)
