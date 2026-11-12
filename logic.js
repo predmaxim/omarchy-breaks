@@ -276,10 +276,10 @@ function nudgeDue(event, now, last, c) {
   return now - Math.max(event.start, last) >= c.nudge * 1000
 }
 
-// A call without a calendar event (microphone or camera busy) is a meeting
+// A call without a calendar event (microphone busy) is a meeting
 // for the tips too: when it started, 0 when there is none.
 function callStart(prev, reason, now) {
-  return reason === "microphone" || reason === "camera" ? (prev || now) : 0
+  return reason === "microphone" ? (prev || now) : 0
 }
 
 // ------------------------------------------------------------ sensors
@@ -311,16 +311,13 @@ function excluded(cls, list) {
   return String(list || "").split(",").some(function(x) { x = x.trim().toLowerCase(); return x !== "" && c.indexOf(x) >= 0 })
 }
 
-// `hyprctl activewindow -j`, "@@", then "cam" when a /dev/video* is open.
-// Hyprland's fullscreen: 0 none, 1 maximized, 2 fullscreen.
+// `hyprctl activewindow -j`. Hyprland's fullscreen: 0 none, 1 maximized, 2 fullscreen.
 function parseProbe(text) {
-  var parts = String(text || "").split("@@")
   var win = {}
-  try { win = JSON.parse(parts[0]) || {} } catch (e) { win = {} }
+  try { win = JSON.parse(String(text || "")) || {} } catch (e) { win = {} }
   return {
     fullscreen: win.fullscreen === true || win.fullscreen >= 2,
-    cls: String(win.class || ""),
-    camera: parts.length > 1 && parts[1].indexOf("cam") >= 0
+    cls: String(win.class || "")
   }
 }
 

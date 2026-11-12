@@ -196,7 +196,7 @@ assert.strictEqual(L.nudgeDue(ev(-50, 30), now, 0, c), false)        // off by d
 assert.strictEqual(L.nudgeDue(null, now, 0, cn), false)
 // A call without a calendar event is a meeting too, from its start.
 assert.strictEqual(L.callStart(0, "microphone", 5), 5)
-assert.strictEqual(L.callStart(5, "camera", 9), 5)
+assert.strictEqual(L.callStart(5, "microphone", 9), 5)
 assert.strictEqual(L.callStart(5, "video", 9), 0)
 assert.strictEqual(L.callStart(5, "", 9), 0)
 assert.ok(L.NUDGES.length >= 4 && L.TIPS.length >= 3)
@@ -219,10 +219,10 @@ assert.strictEqual(L.mediaPlaying(undefined), false)
 assert.strictEqual(L.excluded("Zoom", "zoom, teams"), true)
 assert.strictEqual(L.excluded("firefox", "zoom,teams"), false)
 assert.strictEqual(L.excluded("", ""), false)
-assert.deepStrictEqual(L.parseProbe('{"class":"mpv","fullscreen":2}\n@@\ncam\n'), { fullscreen: true, cls: "mpv", camera: true })
-assert.deepStrictEqual(L.parseProbe('{"class":"kitty","fullscreen":1}\n@@\n'), { fullscreen: false, cls: "kitty", camera: false })
-assert.deepStrictEqual(L.parseProbe('{}\n@@\n'), { fullscreen: false, cls: "", camera: false })
-assert.deepStrictEqual(L.parseProbe("garbage"), { fullscreen: false, cls: "", camera: false })
+assert.deepStrictEqual(L.parseProbe('{"class":"mpv","fullscreen":2}\n'), { fullscreen: true, cls: "mpv" })
+assert.deepStrictEqual(L.parseProbe('{"class":"kitty","fullscreen":1}\n'), { fullscreen: false, cls: "kitty" })
+assert.deepStrictEqual(L.parseProbe('{}\n'), { fullscreen: false, cls: "" })
+assert.deepStrictEqual(L.parseProbe("garbage"), { fullscreen: false, cls: "" })
 
 // --- exercises
 const zero = () => 0

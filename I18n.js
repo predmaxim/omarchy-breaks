@@ -18,7 +18,7 @@ var TABLES = {
     "Next: eyes in %1 min": "Дальше: глаза через %1 мин",
     "Next: body in %1 min": "Дальше: тело через %1 мин",
     "Waiting: %1": "Ждём: %1",
-    "microphone": "микрофон", "camera": "камера", "video": "видео", "fullscreen": "полный экран",
+    "microphone": "микрофон", "video": "видео", "fullscreen": "полный экран",
     "app": "приложение", "meeting": "встреча",
     "Breaks are off": "Перерывы выключены",
     "Settings": "Настройки", "Back": "Назад", "Turn on": "Включить", "On": "Вкл", "Silence during breaks": "Тишина во время перерыва", "Block hotkeys during breaks": "Блокировать горячие клавиши в перерыв", "Off": "Выкл", "Turn off": "Выключить",

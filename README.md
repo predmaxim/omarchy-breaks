@@ -10,7 +10,8 @@ A call is a capture stream that is not muted (the shell's microphone widget's
 test). Two kinds of streams are open all the time and don't count: virtual ones
 (filter chains such as omarchy-mic-denoise or echo cancel) and Oma's ear
 (agent-speak, `node.name` `oma-ear`), which listens for her name on AC power —
-the same rule as omarchy-presence.
+the same rule as omarchy-presence. The camera is not a call signal: nothing
+polls `/dev/video*` — a call without the microphone doesn't hold a break.
 
 ## Media
 

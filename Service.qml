@@ -8,7 +8,7 @@ import "logic.js" as L
 import "I18n.js" as I18n
 
 // predmaxim.breaks: breaks by active time (logic.js decides). Every second it
-// reads the sensors — idle, microphone, camera, fullscreen, the Datebook
+// reads the sensors — idle, microphone, fullscreen, the Datebook
 // calendar — and opens Overlay.qml (a break) or Micro.qml (a micro-pause).
 // Settings are the bar widget's entry in shell.json (schema in manifest.json).
 Item {
@@ -136,17 +136,16 @@ Item {
   readonly property var nodes: Pipewire.nodes ? Pipewire.nodes.values : []
   PwObjectTracker { objects: root.nodes }
 
-  property var probe: ({ fullscreen: false, cls: "", camera: false })
+  property var probe: ({ fullscreen: false, cls: "" })
   Process {
     id: prober
-    command: ["sh", "-c", "hyprctl activewindow -j; echo '@@'; for d in /dev/video*; do [ -e \"$d\" ] && fuser -s \"$d\" 2>/dev/null && { echo cam; break; }; done"]
+    command: ["hyprctl", "activewindow", "-j"]
     stdout: StdioCollector { onStreamFinished: root.probe = L.parseProbe(text) }
   }
   Timer { interval: 5000; running: true; repeat: true; triggeredOnStart: true; onTriggered: prober.running = true }
 
   // Why a break has to wait; "" when nothing is in the way.
   readonly property string busyReason: L.micBusy(nodes) ? "microphone"
-    : probe.camera ? "camera"
     : (rawIdle.isIdle && !idle.isIdle) ? "video"
     : probe.fullscreen ? "fullscreen"
     : L.excluded(probe.cls, settings.exclude) ? "app"
