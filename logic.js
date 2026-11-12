@@ -298,6 +298,13 @@ function micBusy(nodes) {
   return false
 }
 
+// Media playing: watching is work for the eyes. Oma's own MPRIS player (agent-speak,
+// for the headset button) «plays» only while she speaks — not media, the same rule
+// as her Model.music().
+function mediaPlaying(players) {
+  return (players || []).some(function(p) { return p && p.isPlaying && p.dbusName !== "org.mpris.MediaPlayer2.oma" })
+}
+
 function excluded(cls, list) {
   var c = String(cls || "").toLowerCase()
   if (!c) return false

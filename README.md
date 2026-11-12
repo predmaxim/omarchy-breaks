@@ -12,6 +12,12 @@ test). Two kinds of streams are open all the time and don't count: virtual ones
 (agent-speak, `node.name` `oma-ear`), which listens for her name on AC power —
 the same rule as omarchy-presence.
 
+## Media
+
+Media playing keeps away time from counting as a break (watching is work for
+the eyes). Oma's own MPRIS player (agent-speak, `org.mpris.MediaPlayer2.oma`,
+for the headset button) is not media: it «plays» only while she speaks.
+
 ## Colours
 
 Status colours (red, orange) are fixed rather than the theme's, whose red or

@@ -4,7 +4,7 @@ const path = require("path")
 const assert = require("assert")
 const L = new Function(fs.readFileSync(path.join(__dirname, "logic.js"), "utf8").replace(".pragma library", "") +
   "; return { DEFAULTS, normalize, seconds, readEntry, newState, tick, credit, plan, decide, busyEvents, eventAt, nextEvent," +
-  " postpone, skip, nudgeDue, callStart, NUDGES, TIPS, micBusy, excluded, parseProbe, EXERCISES, pickBreak, reps, streak, dayKey, parseHistory, todayStats, LIMITS, rowsFor, adjust, restoreState, inSchedule, workTime, offHours, toggleDay, scheduleError, dayRanges, scheduleSummary }")()
+  " postpone, skip, nudgeDue, callStart, NUDGES, TIPS, micBusy, mediaPlaying, excluded, parseProbe, EXERCISES, pickBreak, reps, streak, dayKey, parseHistory, todayStats, LIMITS, rowsFor, adjust, restoreState, inSchedule, workTime, offHours, toggleDay, scheduleError, dayRanges, scheduleSummary }")()
 
 // Settings: defaults fill gaps, junk falls back, numbers are clamped, eyesMax >= eyesMin.
 assert.deepStrictEqual(L.normalize({}), L.DEFAULTS)
@@ -211,6 +211,11 @@ assert.strictEqual(L.micBusy([{ isStream: true, isSink: false, audio: { muted: f
 assert.strictEqual(L.micBusy([{ isStream: true, isSink: false, audio: { muted: false }, properties: { "application.name": "Chromium" } }]), true)
 // Oma (agent-speak) listens for her name with her ear stream open all the time: not a call, as in omarchy-presence.
 assert.strictEqual(L.micBusy([{ isStream: true, isSink: false, audio: { muted: false }, properties: { "node.name": "oma-ear" } }]), false)
+// Media playing (watching is work for the eyes) — except Oma's own MPRIS player: it «plays» only while she speaks.
+assert.strictEqual(L.mediaPlaying([{ dbusName: "org.mpris.MediaPlayer2.spotify", isPlaying: true }]), true)
+assert.strictEqual(L.mediaPlaying([{ dbusName: "org.mpris.MediaPlayer2.oma", isPlaying: true }, null]), false)
+assert.strictEqual(L.mediaPlaying([{ dbusName: "org.mpris.MediaPlayer2.mpv", isPlaying: false }]), false)
+assert.strictEqual(L.mediaPlaying(undefined), false)
 assert.strictEqual(L.excluded("Zoom", "zoom, teams"), true)
 assert.strictEqual(L.excluded("firefox", "zoom,teams"), false)
 assert.strictEqual(L.excluded("", ""), false)

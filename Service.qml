@@ -122,7 +122,7 @@ Item {
     onIsIdleChanged: root.idleSince = isIdle ? Date.now() - timeout * 1000 : 0
   }
   readonly property var players: Mpris.players ? Mpris.players.values : []
-  readonly property bool mediaPlaying: players.some(function(p) { return p && p.isPlaying })
+  readonly property bool mediaPlaying: L.mediaPlaying(players)
   // A micro-pause is done after microSeconds without input.
   IdleMonitor {
     enabled: root.microShown
